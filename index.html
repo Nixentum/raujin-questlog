@@ -1,0 +1,2807 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Quest Log">
+<meta name="theme-color" content="#080808">
+<link rel="manifest" href="/manifest.json">
+<title>RAUJIN // QUEST LOG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
+
+/* ════════════════════════════════════════
+   CSS VARIABLES — DARK (default) + LIGHT
+════════════════════════════════════════ */
+:root {
+  --bg:#080808; --bg2:#0e0e0e; --bg3:#141414; --bg4:#181818;
+  --gold:#C4A35A; --gold-dim:#7a6435; --gold-bright:#e8c97a;
+  --white:#F0EDE8; --white-dim:#9a9590;
+  --red:#c0392b; --red-dim:#7a1f14;
+  --green:#2a7a4a; --green-bright:#3db36e;
+  --border:#2a2520; --border-gold:#3a2e1a;
+  --shadow:rgba(0,0,0,.6);
+  --p-crit:#ff4444; --p-high:#e8843a; --p-med:#C4A35A; --p-low:#6aaa7a; --p-none:#555;
+  --modal-bg:rgba(0,0,0,.82);
+}
+.light {
+  --bg:#F5F0E8; --bg2:#EDE8DF; --bg3:#E4DDD2; --bg4:#DDD5C8;
+  --gold:#2A5C45; --gold-dim:#1a3d2d; --gold-bright:#1d4a35;
+  --white:#1a1a1a; --white-dim:#4a4a42;
+  --border:#C8C0B0; --border-gold:#A8A090;
+  --shadow:rgba(0,0,0,.15);
+  --p-crit:#cc2222; --p-high:#c06020; --p-med:#2A5C45; --p-low:#2a7a4a; --p-none:#888;
+  --modal-bg:rgba(0,0,0,.5);
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; background:var(--bg); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:15px; overflow:hidden; transition:background .3s,color .3s; }
+
+body.dark::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.07) 2px,rgba(0,0,0,.07) 4px);
+}
+body.dark::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9998;
+  background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.6) 100%);
+}
+
+/* ════════ LAYOUT ════════ */
+.shell { display:flex; flex-direction:column; height:100vh; padding:14px; gap:10px; }
+@media (max-width:767px) { .shell { padding:0; gap:0; height:100%; height:-webkit-fill-available; } }
+@keyframes fadeIn { from{opacity:0;transform:scale(.99)} to{opacity:1;transform:scale(1)} }
+.shell { animation:fadeIn .5s ease; }
+
+/* ════════ HEADER ════════ */
+.header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:9px 16px; border:1px solid var(--border-gold); background:var(--bg2);
+  position:relative; flex-shrink:0; gap:12px;
+}
+.header::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+.header-title { font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:300; letter-spacing:.2em; color:var(--gold); text-transform:uppercase; white-space:nowrap; }
+.header-title span { color:var(--white-dim); font-size:14px; font-family:'JetBrains Mono',monospace; letter-spacing:.1em; }
+.header-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.status-dot { width:7px; height:7px; border-radius:50%; background:var(--green-bright); box-shadow:0 0 5px var(--green-bright); animation:pulse 2s infinite; display:inline-block; margin-right:5px; }
+.status-dot.off { background:var(--white-dim); box-shadow:none; animation:none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.btn-hdr {
+  font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.07em;
+  color:var(--gold); background:transparent; border:1px solid var(--gold-dim);
+  padding:4px 11px; cursor:pointer; transition:all .2s; text-transform:uppercase; white-space:nowrap;
+}
+.btn-hdr:hover { background:rgba(196,163,90,.1); border-color:var(--gold); }
+.btn-hdr.sec { color:var(--white-dim); border-color:var(--border); }
+.btn-hdr.sec:hover { color:var(--gold); border-color:var(--gold-dim); }
+.btn-hdr.active { background:rgba(196,163,90,.15); border-color:var(--gold); color:var(--gold); }
+
+/* nav tabs */
+.nav-tabs { display:flex; gap:4px; }
+.nav-tab { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.08em; padding:4px 12px; border:1px solid var(--border); background:transparent; color:var(--white-dim); cursor:pointer; text-transform:uppercase; transition:all .15s; }
+.nav-tab:hover { color:var(--gold); border-color:var(--gold-dim); }
+.nav-tab.active { border-color:var(--gold); color:var(--gold); background:rgba(196,163,90,.08); }
+
+/* ════════ MAIN GRID ════════ */
+.main { flex:1; min-height:0; overflow:hidden; }
+.panel { border:1px solid var(--border); background:var(--bg2); display:flex; flex-direction:column; overflow:hidden; position:relative; transition:background .3s,border-color .3s; }
+.panel::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--gold-dim),transparent); opacity:.5; }
+.panel-header { display:flex; align-items:center; justify-content:space-between; padding:7px 12px; border-bottom:1px solid var(--border); background:var(--bg3); flex-shrink:0; gap:8px; }
+.panel-label { font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); display:flex; align-items:center; gap:7px; }
+.panel-label::before { content:'▶'; font-size:8px; color:var(--gold-dim); }
+.panel-count { font-size:12px; color:var(--white-dim); white-space:nowrap; }
+
+/* ════════ SORT / FILTER BAR ════════ */
+.filter-bar { display:flex; gap:5px; padding:6px 8px; border-bottom:1px solid var(--border); background:var(--bg3); flex-shrink:0; flex-wrap:wrap; align-items:center; }
+.filter-select { background:var(--bg); border:1px solid var(--border); color:var(--white-dim); font-family:'JetBrains Mono',monospace; font-size:11px; padding:3px 6px; outline:none; cursor:pointer; }
+.filter-select:focus { border-color:var(--gold-dim); }
+.filter-label { font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--white-dim); opacity:.5; }
+
+/* ════════ QUEST LIST ════════ */
+.quest-list { flex:1; overflow-y:auto; padding:6px; display:flex; flex-direction:column; gap:3px; }
+.quest-list::-webkit-scrollbar { width:3px; }
+.quest-list::-webkit-scrollbar-thumb { background:var(--gold-dim); }
+
+.quest-item {
+  padding:9px 10px; border:1px solid transparent; cursor:pointer;
+  transition:all .15s; position:relative; display:flex; align-items:flex-start; gap:8px; border-radius:2px;
+}
+.quest-item:hover { background:rgba(196,163,90,.05); border-color:var(--border-gold); }
+.quest-item.active { background:rgba(196,163,90,.08); border-color:var(--gold-dim); }
+.quest-item.active::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--gold); box-shadow:0 0 7px var(--gold); }
+.quest-item.done .quest-item-name { text-decoration:line-through; color:var(--white-dim); opacity:.5; }
+.quest-item.starred { border-color:rgba(196,163,90,.22)!important; box-shadow:0 0 12px rgba(196,163,90,.07),inset 0 0 18px rgba(196,163,90,.03); }
+.quest-item.starred.active { background:rgba(196,163,90,.1)!important; box-shadow:0 0 16px rgba(196,163,90,.12); }
+
+/* priority stripe */
+.quest-item::after { content:''; position:absolute; right:0; top:0; bottom:0; width:2px; border-radius:0 2px 2px 0; }
+.quest-item.p-crit::after { background:var(--p-crit); box-shadow:0 0 6px var(--p-crit); }
+.quest-item.p-high::after { background:var(--p-high); }
+.quest-item.p-med::after  { background:var(--p-med); }
+.quest-item.p-low::after  { background:var(--p-low); }
+
+.star-btn { background:none; border:none; cursor:pointer; font-size:13px; color:var(--border-gold); padding:0 2px; transition:all .2s; flex-shrink:0; line-height:1; margin-top:1px; }
+.star-btn:hover { color:var(--gold-bright); }
+.quest-item.starred .star-btn { color:var(--gold-bright); text-shadow:0 0 7px rgba(232,201,122,.5); }
+
+.quest-status-icon { width:15px; height:15px; border:1px solid var(--gold-dim); border-radius:2px; flex-shrink:0; margin-top:2px; display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--gold); cursor:pointer; transition:all .15s; }
+.quest-status-icon:hover { background:rgba(196,163,90,.2); border-color:var(--gold); }
+.quest-item.done .quest-status-icon { background:rgba(196,163,90,.15); border-color:var(--gold); }
+
+.quest-item-body { flex:1; min-width:0; }
+.quest-item-name { font-size:14px; color:var(--white); line-height:1.3; word-break:break-word; }
+.quest-item-meta { font-size:11px; color:var(--white-dim); margin-top:2px; opacity:.6; display:flex; gap:8px; flex-wrap:wrap; }
+.deadline-badge { color:var(--gold); }
+.deadline-badge.overdue { color:var(--p-crit) !important; animation:blinkRed 1.5s infinite; }
+@keyframes blinkRed { 0%,100%{opacity:1} 50%{opacity:.5} }
+.deadline-badge.soon { color:var(--p-high); }
+
+.quest-item-actions { display:flex; gap:3px; opacity:0; transition:opacity .15s; flex-shrink:0; }
+.quest-item:hover .quest-item-actions { opacity:1; }
+
+.icon-btn { background:none; border:none; cursor:pointer; color:var(--white-dim); font-size:12px; padding:2px 3px; transition:color .15s; font-family:'JetBrains Mono',monospace; }
+.icon-btn:hover { color:var(--gold); }
+.icon-btn.del:hover { color:var(--red); }
+
+.add-form { padding:8px; border-top:1px solid var(--border); background:var(--bg3); display:flex; gap:5px; flex-shrink:0; }
+.add-input { flex:1; background:var(--bg); border:1px solid var(--border); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:13px; padding:6px 9px; outline:none; transition:border-color .2s; }
+.add-input::placeholder { color:var(--white-dim); opacity:.4; }
+.add-input:focus { border-color:var(--gold-dim); }
+.add-btn { background:rgba(196,163,90,.1); border:1px solid var(--gold-dim); color:var(--gold); font-size:18px; padding:0 12px; cursor:pointer; transition:all .2s; line-height:1; }
+.add-btn:hover { background:rgba(196,163,90,.2); border-color:var(--gold); }
+
+/* ════════ RIGHT PANEL ════════ */
+.right-panel { display:flex; flex-direction:column; }
+.quest-detail-header { padding:13px 18px 11px; border-bottom:1px solid var(--border); flex-shrink:0; background:var(--bg3); }
+.quest-detail-title { font-family:'Cormorant Garamond',serif; font-size:21px; font-weight:400; letter-spacing:.05em; color:var(--gold-bright); line-height:1.2; }
+.quest-detail-id { font-size:11px; color:var(--white-dim); margin-top:3px; letter-spacing:.1em; opacity:.5; }
+.detail-actions-row { display:flex; gap:5px; margin-top:9px; align-items:center; flex-wrap:wrap; }
+
+.tag { font-size:10px; letter-spacing:.12em; text-transform:uppercase; padding:3px 7px; border:1px solid; border-radius:1px; white-space:nowrap; }
+.tag-active { border-color:var(--gold-dim); color:var(--gold); }
+.tag-done { border-color:var(--green); color:var(--green-bright); }
+.tag-star { border-color:rgba(232,201,122,.4); color:var(--gold-bright); }
+
+.btn-sm { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.07em; padding:3px 9px; border:1px solid var(--border); background:transparent; color:var(--white-dim); cursor:pointer; text-transform:uppercase; transition:all .15s; white-space:nowrap; }
+.btn-sm:hover { border-color:var(--gold-dim); color:var(--gold); }
+.btn-sm.danger:hover { border-color:var(--red); color:var(--red); }
+.btn-sm.on { border-color:var(--gold-dim); color:var(--gold); background:rgba(196,163,90,.08); }
+
+/* priority tag */
+.p-tag { font-size:10px; letter-spacing:.1em; padding:2px 7px; border:1px solid; border-radius:1px; text-transform:uppercase; }
+.p-tag-crit { border-color:var(--p-crit); color:var(--p-crit); }
+.p-tag-high { border-color:var(--p-high); color:var(--p-high); }
+.p-tag-med  { border-color:var(--p-med);  color:var(--p-med); }
+.p-tag-low  { border-color:var(--p-low);  color:var(--p-low); }
+.p-tag-none { border-color:var(--p-none); color:var(--p-none); }
+
+.progress-wrap { margin-top:9px; display:flex; align-items:center; gap:9px; }
+.progress-bar { flex:1; height:2px; background:var(--border); overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg,var(--gold-dim),var(--gold)); transition:width .4s; box-shadow:0 0 5px var(--gold-dim); }
+.progress-text { font-size:11px; color:var(--white-dim); opacity:.5; white-space:nowrap; }
+
+/* reward banner */
+.reward-banner { margin-top:8px; padding:6px 10px; border:1px solid rgba(196,163,90,.2); background:rgba(196,163,90,.04); font-size:12px; color:var(--gold-dim); font-style:italic; display:flex; align-items:center; gap:8px; }
+.reward-banner .reward-icon { font-size:14px; }
+
+/* ════════ STEPS AREA ════════ */
+.steps-area { flex:1; overflow-y:auto; padding:8px 12px; display:flex; flex-direction:column; gap:4px; }
+.steps-area::-webkit-scrollbar { width:3px; }
+.steps-area::-webkit-scrollbar-thumb { background:var(--border); }
+
+.step-item { border:1px solid var(--border); background:var(--bg3); transition:all .15s; position:relative; }
+.step-item:hover { border-color:var(--border-gold); }
+.step-item.drag-over { border-color:var(--gold); box-shadow:0 0 8px rgba(196,163,90,.2); }
+
+/* priority left border on steps */
+.step-item.sp-crit { border-left:2px solid var(--p-crit); }
+.step-item.sp-high { border-left:2px solid var(--p-high); }
+.step-item.sp-med  { border-left:2px solid var(--p-med); }
+.step-item.sp-low  { border-left:2px solid var(--p-low); }
+
+.step-header { display:flex; align-items:flex-start; gap:9px; padding:9px 11px; }
+.drag-handle { color:var(--white-dim); opacity:.3; cursor:grab; font-size:12px; padding:0 2px; margin-top:2px; flex-shrink:0; user-select:none; }
+.drag-handle:hover { opacity:.7; }
+.drag-handle:active { cursor:grabbing; }
+
+.step-check { width:17px; height:17px; border:1px solid var(--border-gold); background:var(--bg); flex-shrink:0; margin-top:1px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--gold); transition:all .15s; border-radius:1px; }
+.step-check:hover { border-color:var(--gold); background:rgba(196,163,90,.1); }
+.step-item.step-done>.step-header .step-check { background:rgba(196,163,90,.12); border-color:var(--gold-dim); }
+.step-item.step-done>.step-header .step-text { text-decoration:line-through; color:var(--white-dim); opacity:.45; }
+
+.step-body { flex:1; min-width:0; }
+.step-text { font-size:14px; color:var(--white); line-height:1.4; word-break:break-word; }
+.step-note { font-size:11px; color:var(--white-dim); margin-top:2px; font-style:italic; opacity:.55; word-break:break-word; }
+.step-result { font-size:11px; color:var(--green-bright); margin-top:2px; opacity:.7; word-break:break-word; }
+.step-result::before { content:'→ '; }
+.step-reward-txt { font-size:11px; color:var(--gold-dim); margin-top:2px; opacity:.8; font-style:italic; }
+.step-reward-txt::before { content:'🏆 '; }
+.step-meta-row { display:flex; align-items:center; gap:8px; margin-top:3px; flex-wrap:wrap; }
+.step-index { font-size:10px; color:var(--white-dim); opacity:.3; letter-spacing:.05em; }
+.step-done-time { font-size:10px; color:var(--green-bright); opacity:.7; }
+.step-deadline { font-size:10px; }
+
+.step-item-actions { display:flex; gap:1px; opacity:0; transition:opacity .15s; flex-shrink:0; }
+.step-header:hover .step-item-actions { opacity:1; }
+
+.expand-btn { background:none; border:none; cursor:pointer; color:var(--gold-dim); font-size:9px; padding:2px 3px; transition:all .15s; flex-shrink:0; margin-top:3px; }
+.expand-btn:hover { color:var(--gold); }
+
+/* ════════ SUBSTEPS ════════ */
+.substeps-wrap { border-top:1px solid var(--border); background:var(--bg4); overflow:hidden; max-height:0; transition:max-height .25s ease; }
+.substeps-wrap.open { max-height:1200px; }
+.substeps-list { padding:5px 8px 5px 36px; display:flex; flex-direction:column; gap:2px; }
+.substep-item { display:flex; align-items:flex-start; gap:7px; padding:6px 9px; border:1px solid transparent; transition:all .15s; }
+.substep-item:hover { background:rgba(196,163,90,.04); border-color:var(--border); }
+.substep-item.substep-done .substep-text { text-decoration:line-through; color:var(--white-dim); opacity:.4; }
+.substep-check { width:13px; height:13px; border:1px solid var(--border-gold); background:var(--bg); flex-shrink:0; margin-top:2px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:8px; color:var(--gold); transition:all .15s; }
+.substep-check:hover { border-color:var(--gold); }
+.substep-item.substep-done .substep-check { background:rgba(196,163,90,.1); border-color:var(--gold-dim); }
+.substep-body { flex:1; min-width:0; }
+.substep-text { font-size:12px; color:var(--white-dim); line-height:1.4; word-break:break-word; }
+.substep-done-time { font-size:10px; color:var(--green-bright); opacity:.6; margin-top:1px; }
+.substep-actions { display:flex; gap:1px; opacity:0; transition:opacity .15s; flex-shrink:0; }
+.substep-item:hover .substep-actions { opacity:1; }
+.add-substep-row { padding:5px 8px 7px 36px; display:flex; gap:5px; }
+.add-substep-input { flex:1; background:var(--bg); border:1px solid var(--border); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:12px; padding:4px 7px; outline:none; transition:border-color .2s; }
+.add-substep-input::placeholder { color:var(--white-dim); opacity:.3; }
+.add-substep-input:focus { border-color:var(--gold-dim); }
+.add-substep-btn { background:rgba(196,163,90,.07); border:1px solid var(--border-gold); color:var(--gold-dim); font-size:14px; padding:0 9px; cursor:pointer; transition:all .2s; }
+.add-substep-btn:hover { color:var(--gold); border-color:var(--gold-dim); }
+
+/* ════════ ADD STEP FORM ════════ */
+.add-step-form { padding:9px 12px; border-top:1px solid var(--border); background:var(--bg3); flex-shrink:0; display:flex; flex-direction:column; gap:5px; }
+.add-step-row { display:flex; gap:5px; }
+.add-step-input { flex:1; background:var(--bg); border:1px solid var(--border); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:14px; padding:6px 9px; outline:none; transition:border-color .2s; }
+.add-step-input::placeholder { color:var(--white-dim); opacity:.35; }
+.add-step-input:focus { border-color:var(--gold-dim); }
+.add-step-extras { display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
+.add-step-sel { background:var(--bg); border:1px solid var(--border); color:var(--white-dim); font-family:'JetBrains Mono',monospace; font-size:11px; padding:4px 7px; outline:none; cursor:pointer; }
+.add-step-sel:focus { border-color:var(--gold-dim); }
+
+/* ════════ EMPTY ════════ */
+.empty-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:var(--white-dim); opacity:.35; padding:30px; text-align:center; }
+.empty-glyph { font-family:'Cormorant Garamond',serif; font-size:44px; font-weight:300; color:var(--gold-dim); opacity:.4; letter-spacing:.1em; }
+.empty-label { font-size:13px; letter-spacing:.18em; text-transform:uppercase; }
+
+/* ════════ EDIT INLINE ════════ */
+.edit-inline { background:var(--bg); border:1px solid var(--gold-dim); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:14px; padding:3px 7px; outline:none; width:100%; border-radius:1px; }
+.edit-inline-title { background:var(--bg); border:1px solid var(--gold-dim); color:var(--gold-bright); font-family:'Cormorant Garamond',serif; font-size:21px; font-weight:400; padding:3px 7px; outline:none; width:100%; border-radius:1px; }
+.edit-inline-sm { background:var(--bg); border:1px solid var(--gold-dim); color:var(--white-dim); font-family:'JetBrains Mono',monospace; font-size:12px; padding:2px 5px; outline:none; width:100%; border-radius:1px; }
+
+/* ════════ FOOTER ════════ */
+.footer { display:flex; align-items:center; justify-content:space-between; padding:5px 16px; border:1px solid var(--border); background:var(--bg2); font-size:11px; color:var(--white-dim); opacity:.55; flex-shrink:0; letter-spacing:.07em; gap:10px; }
+.footer-stats { display:flex; gap:14px; align-items:center; }
+.footer-stat { display:flex; align-items:center; gap:5px; }
+.footer-stat-val { color:var(--gold); font-size:12px; }
+
+/* ════════ TOAST ════════ */
+.toast { position:fixed; bottom:55px; right:22px; background:var(--bg3); border:1px solid var(--gold-dim); color:var(--gold); font-family:'JetBrains Mono',monospace; font-size:13px; padding:7px 14px; letter-spacing:.07em; z-index:9200; opacity:0; transform:translateY(8px); transition:all .3s; pointer-events:none; }
+
+/* ════════ QUICK ADD BUTTON ════════ */
+.btn-hdr-add {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500;
+  letter-spacing: .1em; color: var(--gold);
+  background: transparent;
+  border: 1px solid var(--gold-dim);
+  padding: 5px 14px; cursor: pointer;
+  transition: all .2s; text-transform: uppercase; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-hdr-add:hover {
+  background: rgba(196,163,90,.1);
+  border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(196,163,90,.15);
+}
+.btn-hdr-add-icon { font-size: 15px; line-height: 1; color: var(--gold); }
+.btn-hdr-add-hint { font-size: 10px; opacity: .4; letter-spacing: .05em; font-weight: 400; }
+
+/* ════════ QUICK ADD MODAL ════════ */
+.qa-modal { background:var(--bg2); border:1px solid var(--gold-dim); width:100%; max-width:560px; position:relative; overflow:hidden; }
+.qa-modal::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--gold),transparent); }
+.qa-header { padding:18px 22px 14px; border-bottom:1px solid var(--border); }
+.qa-title { font-family:'Cormorant Garamond',serif; font-size:21px; color:var(--gold-bright); letter-spacing:.1em; }
+.qa-subtitle { font-size:11px; color:var(--white-dim); opacity:.5; margin-top:3px; letter-spacing:.07em; }
+.qa-body { padding:18px 22px; display:flex; flex-direction:column; gap:13px; }
+.qa-field { display:flex; flex-direction:column; gap:5px; }
+.qa-label { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold-dim); }
+.qa-input {
+  background:var(--bg); border:1px solid var(--border);
+  color:var(--white); font-family:'JetBrains Mono',monospace;
+  font-size:14px; padding:8px 11px; outline:none; transition:border-color .2s; width:100%;
+}
+.qa-input:focus { border-color:var(--gold-dim); }
+.qa-input::placeholder { color:var(--white-dim); opacity:.35; }
+.qa-input-large { font-size:17px; padding:10px 12px; }
+.qa-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.qa-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.qa-select {
+  background:var(--bg); border:1px solid var(--border);
+  color:var(--white); font-family:'JetBrains Mono',monospace;
+  font-size:13px; padding:8px 10px; outline:none; cursor:pointer; width:100%;
+}
+.qa-select:focus { border-color:var(--gold-dim); }
+.qa-subtasks { display:flex; flex-direction:column; gap:5px; }
+.qa-subtask-row { display:flex; gap:6px; align-items:center; }
+.qa-subtask-input {
+  flex:1; background:var(--bg); border:1px solid var(--border);
+  color:var(--white-dim); font-family:'JetBrains Mono',monospace;
+  font-size:12px; padding:6px 9px; outline:none; transition:border-color .2s;
+}
+.qa-subtask-input:focus { border-color:var(--gold-dim); color:var(--white); }
+.qa-subtask-input::placeholder { opacity:.3; }
+.qa-subtask-del { background:none; border:none; color:var(--white-dim); cursor:pointer; font-size:13px; padding:4px; transition:color .15s; }
+.qa-subtask-del:hover { color:var(--red); }
+.qa-add-subtask {
+  background:none; border:1px dashed var(--border-gold); color:var(--gold-dim);
+  font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em;
+  padding:5px 10px; cursor:pointer; text-transform:uppercase; transition:all .2s; text-align:left;
+}
+.qa-add-subtask:hover { border-color:var(--gold); color:var(--gold); }
+.qa-footer { padding:14px 22px 18px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; }
+.qa-btn-primary {
+  font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:.1em;
+  background:var(--gold); color:#080808; border:none;
+  padding:9px 24px; cursor:pointer; text-transform:uppercase; font-weight:700; transition:all .2s;
+}
+.qa-btn-primary:hover { background:var(--gold-bright); }
+.qa-btn-cancel {
+  font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.08em;
+  background:transparent; color:var(--white-dim); border:1px solid var(--border);
+  padding:8px 16px; cursor:pointer; text-transform:uppercase; transition:all .15s;
+}
+.qa-btn-cancel:hover { border-color:var(--gold-dim); color:var(--gold); }
+
+/* today date nav */
+.today-date-nav { display:flex; gap:6px; align-items:center; }
+.today-date-nav-btn { background:none; border:1px solid var(--border); color:var(--white-dim); font-family:'JetBrains Mono',monospace; font-size:11px; padding:3px 9px; cursor:pointer; transition:all .15s; }
+.today-date-nav-btn:hover { border-color:var(--gold-dim); color:var(--gold); }
+.today-date-nav-btn.active { border-color:var(--gold); color:var(--gold); background:rgba(196,163,90,.08); }
+.today-date-input { background:var(--bg); border:1px solid var(--border); color:var(--white-dim); font-family:'JetBrains Mono',monospace; font-size:11px; padding:3px 7px; outline:none; cursor:pointer; }
+.today-date-input:focus { border-color:var(--gold-dim); }
+.toast.show { opacity:1; transform:translateY(0); }
+
+/* ════════ MODALS (shared) ════════ */
+.overlay { display:none; position:fixed; inset:0; background:var(--modal-bg); z-index:8000; align-items:center; justify-content:center; padding:20px; }
+.overlay.show { display:flex; }
+.modal { background:var(--bg2); border:1px solid var(--gold-dim); padding:24px 28px; width:100%; max-width:480px; position:relative; max-height:90vh; overflow-y:auto; }
+.modal::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--gold),transparent); }
+.modal-title { font-family:'Cormorant Garamond',serif; font-size:20px; color:var(--gold-bright); letter-spacing:.1em; margin-bottom:6px; }
+.modal-sub { font-size:12px; color:var(--white-dim); opacity:.6; margin-bottom:18px; line-height:1.5; }
+.modal-field { margin-bottom:14px; }
+.modal-label { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:5px; display:block; }
+.modal-input { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:13px; padding:6px 9px; outline:none; transition:border-color .2s; }
+.modal-input:focus { border-color:var(--gold-dim); }
+.modal-textarea { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:13px; padding:6px 9px; outline:none; transition:border-color .2s; resize:vertical; min-height:60px; }
+.modal-textarea:focus { border-color:var(--gold-dim); }
+.modal-select { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:13px; padding:6px 9px; outline:none; cursor:pointer; }
+.modal-select:focus { border-color:var(--gold-dim); }
+.modal-btns { display:flex; gap:7px; justify-content:flex-end; margin-top:18px; }
+.modal-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* import modal */
+.import-drop-zone { border:1px dashed var(--gold-dim); padding:22px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:14px; color:var(--white-dim); font-size:13px; }
+.import-drop-zone:hover,.import-drop-zone.dragover { border-color:var(--gold); background:rgba(196,163,90,.05); color:var(--gold); }
+.import-drop-icon { font-size:24px; margin-bottom:6px; color:var(--gold-dim); }
+.import-radio-group { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+.import-radio-label { display:flex; align-items:center; gap:9px; font-size:13px; color:var(--white-dim); cursor:pointer; }
+.import-radio-label input[type=radio] { accent-color:var(--gold); width:14px; height:14px; flex-shrink:0; }
+.import-radio-label:hover { color:var(--white); }
+
+/* ════════ CALENDAR VIEW ════════ */
+.calendar-view { display:none; flex:1; flex-direction:column; min-height:0; }
+.calendar-view.active { display:flex; }
+.quests-view { display:none; flex:1; min-height:0; }
+.quests-view.active { display:grid; grid-template-columns:320px 1fr; gap:10px; flex:1; min-height:0; overflow:hidden; }
+
+.cal-header { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid var(--border); flex-shrink:0; background:var(--bg3); }
+.cal-title { font-family:'Cormorant Garamond',serif; font-size:20px; color:var(--gold-bright); letter-spacing:.1em; }
+.cal-nav { display:flex; gap:6px; }
+.cal-nav-btn { background:none; border:1px solid var(--border); color:var(--white-dim); font-family:'JetBrains Mono',monospace; font-size:12px; padding:4px 10px; cursor:pointer; transition:all .15s; }
+.cal-nav-btn:hover { border-color:var(--gold-dim); color:var(--gold); }
+
+.cal-body { flex:1; overflow-y:auto; padding:12px; }
+.cal-body::-webkit-scrollbar { width:3px; }
+.cal-body::-webkit-scrollbar-thumb { background:var(--border); }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+.cal-dow { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-dim); text-align:center; padding:4px 0 6px; }
+.cal-day { min-height:80px; border:1px solid var(--border); padding:5px; transition:all .15s; position:relative; background:var(--bg3); }
+.cal-day:hover { border-color:var(--border-gold); }
+.cal-day.today { border-color:var(--gold-dim); background:rgba(196,163,90,.05); }
+.cal-day.today .cal-day-num { color:var(--gold); }
+.cal-day.other-month { opacity:.35; }
+.cal-day.has-overdue { border-color:var(--p-crit); }
+.cal-day-num { font-size:11px; color:var(--white-dim); margin-bottom:3px; letter-spacing:.05em; }
+.cal-event { font-size:10px; padding:2px 4px; margin-bottom:2px; border-radius:1px; cursor:pointer; line-height:1.3; word-break:break-word; transition:opacity .15s; }
+.cal-event:hover { opacity:.8; }
+.cal-event.ev-quest { background:rgba(196,163,90,.15); color:var(--gold); border-left:2px solid var(--gold); }
+.cal-event.ev-step  { background:rgba(42,90,69,.2); color:var(--green-bright); border-left:2px solid var(--green); }
+.cal-event.ev-overdue { background:rgba(192,57,43,.15); color:var(--p-crit); border-left:2px solid var(--p-crit); }
+.cal-event.ev-today-task { background:rgba(196,163,90,.25); color:var(--gold-bright); border-left:2px solid var(--gold-bright); font-weight:700; }
+
+.cal-legend { display:flex; gap:12px; padding:8px 16px; border-top:1px solid var(--border); flex-shrink:0; background:var(--bg3); font-size:10px; color:var(--white-dim); align-items:center; flex-wrap:wrap; }
+.cal-legend-item { display:flex; align-items:center; gap:5px; }
+.cal-legend-dot { width:8px; height:8px; border-radius:1px; }
+
+/* ════════ SETTINGS VIEW ════════ */
+.settings-view { display:none; flex:1; overflow-y:auto; padding:20px; }
+.settings-view.active { display:block; }
+.settings-view::-webkit-scrollbar { width:3px; }
+.settings-view::-webkit-scrollbar-thumb { background:var(--border); }
+.settings-section { margin-bottom:28px; }
+.settings-section-title { font-family:'Cormorant Garamond',serif; font-size:16px; color:var(--gold); letter-spacing:.15em; text-transform:uppercase; margin-bottom:12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+.settings-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); gap:12px; }
+.settings-row:last-child { border-bottom:none; }
+.settings-row-label { font-size:13px; color:var(--white); }
+.settings-row-sub { font-size:11px; color:var(--white-dim); opacity:.6; margin-top:2px; }
+.toggle-switch { position:relative; width:38px; height:20px; flex-shrink:0; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; inset:0; background:var(--border); cursor:pointer; transition:all .3s; border:1px solid var(--border-gold); }
+.toggle-slider::before { content:''; position:absolute; height:14px; width:14px; left:2px; top:2px; background:var(--white-dim); transition:all .3s; }
+.toggle-switch input:checked + .toggle-slider { background:rgba(196,163,90,.2); border-color:var(--gold-dim); }
+.toggle-switch input:checked + .toggle-slider::before { transform:translateX(18px); background:var(--gold); }
+.settings-btn-group { display:flex; gap:7px; flex-wrap:wrap; }
+.settings-btn { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.08em; padding:5px 14px; border:1px solid var(--border); background:transparent; color:var(--white-dim); cursor:pointer; text-transform:uppercase; transition:all .15s; }
+.settings-btn:hover { border-color:var(--gold-dim); color:var(--gold); }
+.settings-btn.active { border-color:var(--gold); color:var(--gold); background:rgba(196,163,90,.1); }
+
+/* priority select colors */
+.pri-crit { color:var(--p-crit) !important; }
+.pri-high { color:var(--p-high) !important; }
+.pri-med  { color:var(--p-med)  !important; }
+.pri-low  { color:var(--p-low)  !important; }
+.pri-none { color:var(--p-none) !important; }
+
+/* XP badge */
+.xp-badge { font-size:10px; background:rgba(196,163,90,.1); border:1px solid var(--gold-dim); color:var(--gold); padding:1px 6px; letter-spacing:.08em; display:inline-block; }
+
+/* ════════ TODAY VIEW ════════ */
+.today-view { display:none; flex:1; flex-direction:column; min-height:0; border:1px solid var(--border); background:var(--bg2); position:relative; }
+.today-view::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--gold-dim),transparent); opacity:.5; }
+.today-view.active { display:flex; }
+.today-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; border-bottom:1px solid var(--border); flex-shrink:0; background:var(--bg3); }
+.today-title { font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:300; color:var(--gold-bright); letter-spacing:.15em; }
+.today-subtitle { font-size:11px; color:var(--white-dim); opacity:.5; margin-top:3px; letter-spacing:.08em; }
+.today-body { flex:1; overflow-y:auto; padding:12px 16px; display:flex; flex-direction:column; gap:8px; }
+.today-body::-webkit-scrollbar { width:3px; }
+.today-body::-webkit-scrollbar-thumb { background:var(--gold-dim); }
+.today-footer { padding:8px 18px; border-top:1px solid var(--border); background:var(--bg3); font-size:11px; color:var(--white-dim); display:flex; gap:16px; flex-shrink:0; }
+.today-section-title { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--gold-dim); padding:4px 0 6px; border-bottom:1px solid var(--border); margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.today-section-title::before { content:'▶'; font-size:8px; }
+
+.today-item {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:10px 14px; border:1px solid var(--border); background:var(--bg3);
+  transition:all .15s; position:relative; cursor:pointer;
+}
+.today-item:hover { border-color:var(--border-gold); background:rgba(196,163,90,.03); }
+.today-item.t-done { opacity:.45; }
+.today-item.t-done .today-item-text { text-decoration:line-through; }
+.today-item.t-overdue { border-left:2px solid var(--p-crit); }
+.today-item.t-today-task { border-left:2px solid var(--gold-bright); }
+.today-item.t-starting { border-left:2px solid var(--green-bright); }
+
+.today-check { width:18px; height:18px; border:1px solid var(--border-gold); background:var(--bg); flex-shrink:0; margin-top:1px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--gold); transition:all .15s; border-radius:1px; }
+.today-check:hover { border-color:var(--gold); background:rgba(196,163,90,.1); }
+.today-item.t-done .today-check { background:rgba(196,163,90,.12); border-color:var(--gold-dim); }
+
+.today-item-body { flex:1; min-width:0; }
+.today-item-text { font-size:14px; color:var(--white); line-height:1.3; word-break:break-word; }
+.today-item-meta { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; align-items:center; }
+.today-item-quest { font-size:11px; color:var(--gold-dim); opacity:.8; }
+.today-item-badge { font-size:10px; padding:1px 6px; border:1px solid; border-radius:1px; white-space:nowrap; }
+.t-badge-overdue { border-color:var(--p-crit); color:var(--p-crit); }
+.t-badge-today { border-color:var(--gold-bright); color:var(--gold-bright); }
+.t-badge-start { border-color:var(--green-bright); color:var(--green-bright); }
+.t-badge-deadline { border-color:var(--p-high); color:var(--p-high); }
+
+.today-go-btn { background:none; border:1px solid var(--border); color:var(--white-dim); font-family:'JetBrains Mono',monospace; font-size:10px; padding:2px 7px; cursor:pointer; transition:all .15s; flex-shrink:0; margin-top:1px; }
+.today-go-btn:hover { border-color:var(--gold-dim); color:var(--gold); }
+
+.today-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; opacity:.3; }
+.today-empty-glyph { font-family:'Cormorant Garamond',serif; font-size:40px; color:var(--gold-dim); }
+.today-empty-label { font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--white-dim); }
+
+/* ── INBOX ── */
+.inbox-view { display:none; flex:1; flex-direction:column; min-height:0; }
+.inbox-view.active { display:flex; }
+.inbox-header { display:flex; align-items:center; justify-content:space-between; padding:12px 18px; border-bottom:1px solid var(--border); flex-shrink:0; background:var(--bg3); gap:10px; }
+.inbox-title { font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:300; letter-spacing:.15em; color:var(--gold-bright); text-transform:uppercase; }
+.inbox-count { font-size:12px; color:var(--white-dim); opacity:.6; letter-spacing:.08em; }
+.inbox-scroll { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 14px; }
+.inbox-scroll::-webkit-scrollbar { width:3px; }
+.inbox-scroll::-webkit-scrollbar-thumb { background:var(--gold-dim); }
+.inbox-item { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:1px solid var(--border); background:var(--bg2); margin-bottom:6px; border-radius:2px; position:relative; }
+.inbox-item:hover { border-color:var(--border-gold); }
+.inbox-item.inbox-done { opacity:.45; }
+.inbox-item.inbox-done .inbox-item-text { text-decoration:line-through; }
+.inbox-item-check { width:18px; height:18px; border:1px solid var(--border-gold); background:var(--bg); flex-shrink:0; margin-top:2px; display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--gold); cursor:pointer; border-radius:1px; transition:all .15s; }
+.inbox-item-check:hover { border-color:var(--gold); background:rgba(196,163,90,.1); }
+.inbox-item.inbox-done .inbox-item-check { background:rgba(196,163,90,.15); border-color:var(--gold-dim); }
+.inbox-item-body { flex:1; min-width:0; }
+.inbox-item-text { font-size:14px; color:var(--white); line-height:1.4; word-break:break-word; }
+.inbox-item-meta { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; align-items:center; font-size:11px; color:var(--white-dim); opacity:.6; }
+.inbox-item-actions { display:flex; gap:3px; flex-shrink:0; opacity:0; transition:opacity .15s; }
+.inbox-item:hover .inbox-item-actions { opacity:1; }
+@media (max-width:767px) { .inbox-item-actions { opacity:1 !important; } }
+.inbox-add-bar { padding:10px 14px; border-top:1px solid var(--border); background:var(--bg3); flex-shrink:0; display:flex; gap:6px; }
+.inbox-add-input { flex:1; background:var(--bg); border:1px solid var(--border); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:14px; padding:9px 12px; outline:none; border-radius:2px; -webkit-appearance:none; min-height:44px; }
+.inbox-add-input::placeholder { color:var(--white-dim); opacity:.4; }
+.inbox-add-input:focus { border-color:var(--gold-dim); }
+.inbox-add-btn { background:rgba(196,163,90,.1); border:1px solid var(--gold-dim); color:var(--gold); font-size:20px; padding:0 14px; cursor:pointer; border-radius:2px; min-height:44px; }
+.inbox-add-btn:hover { background:rgba(196,163,90,.2); }
+/* assign to quest modal */
+.assign-badge { display:inline-block; font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:2px 7px; border:1px solid var(--gold-dim); color:var(--gold); border-radius:1px; cursor:pointer; }
+.assign-badge:hover { background:rgba(196,163,90,.1); }
+
+/* ── AUTH UI ── */
+.auth-badge { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--white-dim); }
+.auth-badge .sync-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.sync-dot.online  { background:var(--green-bright); box-shadow:0 0 5px var(--green-bright); animation:pulse 2s infinite; }
+.sync-dot.offline { background:var(--white-dim); }
+.sync-dot.syncing { background:var(--gold); animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.offline-bar { display:none; background:rgba(232,132,58,.1); border-bottom:1px solid var(--p-high); padding:5px 18px; font-size:11px; color:var(--p-high); letter-spacing:.07em; flex-shrink:0; }
+.offline-bar.show { display:block; }
+.auth-sheet-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:9100; align-items:center; justify-content:center; }
+.auth-sheet-overlay.show { display:flex; }
+.auth-sheet { background:var(--bg2); border:1px solid var(--gold-dim); padding:28px 32px; width:100%; max-width:400px; position:relative; }
+.auth-sheet::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--gold),transparent); }
+.auth-sheet-title { font-family:'Cormorant Garamond',serif; font-size:21px; color:var(--gold-bright); letter-spacing:.1em; margin-bottom:18px; }
+.auth-field { margin-bottom:12px; }
+.auth-label { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-dim); margin-bottom:5px; display:block; }
+.auth-input { width:100%; background:var(--bg); border:1px solid var(--border); color:var(--white); font-family:'JetBrains Mono',monospace; font-size:14px; padding:10px 12px; outline:none; }
+.auth-input:focus { border-color:var(--gold-dim); }
+.auth-input::placeholder { color:var(--white-dim); opacity:.4; }
+.auth-err { font-size:11px; color:var(--p-crit); min-height:16px; margin-bottom:8px; }
+.auth-btns { display:flex; flex-direction:column; gap:7px; }
+.auth-btn-primary { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; letter-spacing:.1em; background:var(--gold); color:#080808; border:none; padding:12px; cursor:pointer; text-transform:uppercase; width:100%; }
+.auth-btn-primary:hover { background:var(--gold-bright); }
+.auth-btn-secondary { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.07em; background:transparent; color:var(--white-dim); border:1px solid var(--border); padding:10px; cursor:pointer; text-transform:uppercase; width:100%; }
+.auth-btn-secondary:hover { border-color:var(--gold-dim); color:var(--gold); }
+.auth-toggle-link { font-size:11px; color:var(--white-dim); opacity:.6; text-align:center; cursor:pointer; margin-top:4px; }
+.auth-toggle-link span { color:var(--gold); text-decoration:underline; }
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 767px) {
+  html, body { overflow:hidden; height:100%; height:-webkit-fill-available; }
+
+  .shell {
+    padding:0; gap:0;
+    padding-top: env(safe-area-inset-top, 0px);
+    height:100%; height:-webkit-fill-available;
+    display:flex; flex-direction:column;
+  }
+
+  /* Header */
+  .header { padding:8px 14px; flex-wrap:nowrap; min-height:50px; }
+  .header-title { font-size:16px; letter-spacing:.12em; }
+  .nav-tabs   { display:none !important; }
+  .auth-badge { display:none !important; }
+  .header-meta .btn-hdr:not(.btn-hdr-add) { display:none !important; }
+  .btn-hdr-add { font-size:12px; padding:5px 12px; }
+  .btn-hdr-add .btn-hdr-add-hint { display:none; }
+
+  /* Content area — all views stack here, only active shown */
+  .quests-view, .today-view, .calendar-view, .settings-view, .inbox-view {
+    position:fixed !important;
+    top: calc(50px + env(safe-area-inset-top, 0px)) !important;
+    left:0 !important; right:0 !important;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index:100;
+    overflow:hidden;
+    display:none !important;
+    flex-direction:column;
+  }
+
+  /* Show active view */
+  .quests-view.active   { display:flex !important; }
+  .today-view.active    { display:flex !important; }
+  .calendar-view.active { display:flex !important; }
+  .inbox-view.active    { display:flex !important; }
+  .settings-view.active { display:block !important; overflow-y:auto; }
+
+  /* Quest view = left panel only (right panel is separate overlay) */
+  .quests-view.active {
+    grid-template-columns: 1fr !important;
+    display:flex !important;
+    flex-direction:column;
+  }
+  /* Hide right panel from flow — it's a fixed overlay */
+  .right-panel {
+    position:fixed !important;
+    top: calc(50px + env(safe-area-inset-top, 0px));
+    left:0; right:0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    z-index:300;
+    transform:translateX(100%);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    border:none;
+    display:flex !important;
+    flex-direction:column;
+  }
+  .right-panel.mobile-open { transform:translateX(0); }
+
+  /* Left panel fills quests view */
+  .quests-view > .panel:not(.right-panel) {
+    flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden;
+    border:none; border-bottom:1px solid var(--border);
+  }
+
+  /* Quest list scrolls, add-form stays at bottom */
+  .quest-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .add-form { flex-shrink:0; padding:8px 10px; }
+  .add-input { font-size:15px; min-height:44px; padding:10px 12px; }
+  .add-btn { min-height:44px; font-size:20px; }
+
+  /* Filter bar */
+  .filter-bar { overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap; }
+  .filter-bar::-webkit-scrollbar { display:none; }
+  .filter-select { font-size:11px; padding:4px 6px; }
+
+  /* Steps */
+  .step-text { font-size:14px; }
+  .step-header { padding:10px; }
+  .add-step-input { font-size:15px; min-height:44px; padding:10px 12px; }
+  .add-step-btn { min-height:44px; }
+  .add-step-extras { grid-template-columns:1fr 1fr; gap:4px; }
+
+  /* Action buttons — always visible + larger touch targets */
+  .quest-item-actions { opacity:1 !important; gap:2px; }
+  .step-item-actions  { opacity:1 !important; gap:2px; }
+  .substep-actions    { opacity:1 !important; }
+  .icon-btn {
+    font-size:15px !important;
+    padding:5px 7px !important;
+    min-width:32px; min-height:32px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .step-more-btn {
+    font-size:22px !important;
+    padding:4px 10px !important;
+    min-height:44px; min-width:40px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  /* Quest item touch padding */
+  .quest-item { padding:13px 10px; }
+  .quest-item-name { font-size:15px; }
+
+  /* Modals — centered with padding */
+  .overlay {
+    align-items:center !important;
+    padding:16px !important;
+  }
+  .modal {
+    max-width:100%;
+    max-height:88vh;
+    border-radius:14px;
+    margin:0 auto;
+    overflow-y:auto;
+  }
+  .modal-row { grid-template-columns:1fr; }
+
+  /* Calendar */
+  .cal-day { min-height:48px; }
+  .cal-event { font-size:8px; }
+
+  /* Footer — hidden */
+  .footer { display:none !important; }
+
+  /* Back button */
+  #mobileBackBar { display:flex !important; }
+
+  /* Bottom nav */
+  .bottom-nav-mobile { display:flex !important; }
+}
+
+/* ── MOBILE BOTTOM NAV ── */
+.bottom-nav-mobile {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  background:var(--bg2); border-top:1px solid var(--border-gold);
+  z-index:400; padding-bottom:env(safe-area-inset-bottom,0);
+}
+.bnav-item {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:3px; padding:9px 4px 6px; background:none; border:none; cursor:pointer;
+  color:var(--white-dim); font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+  font-family:'JetBrains Mono',monospace; position:relative; min-height:50px;
+  -webkit-tap-highlight-color:transparent;
+}
+.bnav-item.active { color:var(--gold); }
+.bnav-item.active::before { content:''; position:absolute; top:0; left:15%; right:15%; height:2px; background:var(--gold); box-shadow:0 0 5px var(--gold); }
+.bnav-icon { font-size:18px; line-height:1; }
+.mobile-back-btn {
+  display:none; align-items:center; gap:6px;
+  background:none; border:1px solid var(--border); color:var(--white-dim);
+  font-family:'JetBrains Mono',monospace; font-size:11px; padding:5px 10px;
+  cursor:pointer; min-height:34px; margin-right:8px;
+}
+.mobile-back-btn:active { border-color:var(--gold-dim); color:var(--gold); }
+</style>
+</head>
+<body class="dark">
+<div class="offline-bar" id="offlineBar">⚠ Офлайн — изменения сохранятся при подключении</div>
+<div class="shell">
+
+  <!-- ── HEADER ── -->
+  <div class="header">
+    <div class="header-title">RAUJIN <span>// QUEST LOG</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchView('quests')" id="tab-quests" data-i18n="tab_quests">КВЕСТЫ</button>
+      <button class="nav-tab" onclick="switchView('inbox')" id="tab-inbox">INBOX</button>
+      <button class="nav-tab" onclick="switchView('today')" id="tab-today" data-i18n="tab_today">СЕГОДНЯ</button>
+      <button class="nav-tab" onclick="switchView('calendar')" id="tab-calendar" data-i18n="tab_calendar">КАЛЕНДАРЬ</button>
+      <button class="nav-tab" onclick="switchView('settings')" id="tab-settings">⚙</button>
+    </div>
+    <div class="header-meta">
+      <div class="auth-badge"><div class="sync-dot offline" id="syncDot"></div><span id="syncLabel" style="font-size:11px;color:var(--white-dim);opacity:.5;letter-spacing:.06em;">—</span></div>
+      <button class="btn-hdr sec" id="authBtn" onclick="handleAuthBtn()">ВОЙТИ</button>
+      <button class="btn-hdr-add" onclick="openQuickAdd()" title="Быстрое добавление (N)">
+        <span class="btn-hdr-add-icon">+</span> ЗАДАЧА <span class="btn-hdr-add-hint">[N]</span>
+      </button>
+      <button class="btn-hdr sec" onclick="openImport()" data-i18n="btn_import">[ IMPORT ]</button>
+      <button class="btn-hdr" onclick="exportData()" data-i18n="btn_export">[ EXPORT ]</button>
+    </div>
+  </div>
+
+  <!-- ── QUESTS VIEW ── -->
+  <div class="quests-view active main" id="view-quests">
+
+    <!-- LEFT -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-label" data-i18n="quests">КВЕСТЫ</span>
+        <span class="panel-count" id="questCount"></span>
+      </div>
+      <div class="filter-bar">
+        <span class="filter-label" data-i18n="sort">SORT</span>
+        <select class="filter-select" id="sortSelect" onchange="render()">
+          <option value="manual" data-i18n="sort_manual">Вручную</option>
+          <option value="priority" data-i18n="sort_priority">Приоритет</option>
+          <option value="deadline" data-i18n="sort_deadline">Дедлайн</option>
+          <option value="date" data-i18n="sort_date">Дата создания</option>
+          <option value="name" data-i18n="sort_name">Название</option>
+        </select>
+        <select class="filter-select" id="filterPriority" onchange="render()">
+          <option value="all" data-i18n="all">Все</option>
+          <option value="crit" data-i18n="p_crit">Сверхвысокий</option>
+          <option value="high" data-i18n="p_high">Высокий</option>
+          <option value="med" data-i18n="p_med">Средний</option>
+          <option value="low" data-i18n="p_low">Низкий</option>
+          <option value="none" data-i18n="p_none">Неважно</option>
+        </select>
+        <select class="filter-select" id="filterStatus" onchange="render()">
+          <option value="all" data-i18n="all">Все</option>
+          <option value="active" data-i18n="active">Активные</option>
+          <option value="done" data-i18n="done">Завершённые</option>
+        </select>
+      </div>
+      <div class="quest-list" id="questList"></div>
+      <div class="add-form">
+        <input class="add-input" id="newQuestInput" placeholder="Новый квест..." maxlength="120"
+          onkeydown="if(event.key==='Enter') addQuest()">
+        <button class="add-btn" onclick="addQuest()">+</button>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="panel right-panel">
+      <div style="display:none;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg3);flex-shrink:0;" id="mobileBackBar">
+        <button class="mobile-back-btn" style="display:flex;" onclick="closeMobileDetail()">◀ Квесты</button>
+      </div>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-glyph">⟁</div>
+        <div class="empty-label" data-i18n="select_quest">Выберите квест</div>
+        <div style="font-size:13px;margin-top:4px;" data-i18n="or_create">или создайте новый слева</div>
+      </div>
+      <div id="questDetail"></div>
+    </div>
+
+  </div>
+
+  <!-- ── TODAY VIEW ── -->
+  <div class="today-view" id="view-today">
+    <div class="today-header">
+      <div class="today-title-wrap">
+        <div class="today-title" id="todayDateLabel"></div>
+        <div class="today-subtitle" id="todaySubtitle"></div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-sm" onclick="rolloverUnfinished();renderToday();" title="Перенести незавершённые задачи на сегодня">↺ Перенести</button>
+        <div class="today-date-nav">
+          <button class="today-date-nav-btn" onclick="todayNavMove(-1)" title="Вчера">◀</button>
+          <button class="today-date-nav-btn active" id="todayNavToday" onclick="todayNavToday()">Сегодня</button>
+          <button class="today-date-nav-btn" onclick="todayNavMove(1)" title="Завтра">▶</button>
+          <input class="today-date-input" id="todayNavDate" type="date" onchange="todayNavGoDate(this.value)" title="Перейти к дате">
+        </div>
+      </div>
+    </div>
+    <div class="today-body" id="todayBody"></div>
+    <div class="today-footer" id="todayFooter"></div>
+  </div>
+
+  <!-- ── INBOX VIEW ── -->
+  <div class="inbox-view" id="view-inbox">
+    <div class="inbox-header">
+      <div>
+        <div class="inbox-title">// INBOX</div>
+        <div class="inbox-count" id="inboxCount"></div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="btn-sm" onclick="clearInboxDone()" title="Удалить выполненные">✕ Выполненные</button>
+        <button class="btn-sm" id="assignAllBtn" onclick="openAssignAll()" title="Распределить в квесты">→ Распределить</button>
+      </div>
+    </div>
+    <div class="inbox-scroll" id="inboxList"></div>
+    <div class="inbox-add-bar">
+      <input class="inbox-add-input" id="inboxInput" placeholder="Быстро записать задачу..."
+        maxlength="300" onkeydown="if(event.key==='Enter') addInboxItem()">
+      <button class="inbox-add-btn" onclick="addInboxItem()">+</button>
+    </div>
+  </div>
+
+  <!-- ── CALENDAR VIEW ── -->
+  <div class="calendar-view" id="view-calendar">
+    <div class="cal-header">
+      <div class="cal-title" id="calTitle"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-sm" onclick="calToday()" data-i18n="today">Сегодня</button>
+        <input class="today-date-input" id="calJumpInput" type="month"
+          onchange="calJumpTo(this.value)" title="Перейти к месяцу" style="padding:4px 8px;">
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="calMove(-1)">◀</button>
+          <button class="cal-nav-btn" onclick="calMove(1)">▶</button>
+        </div>
+      </div>
+    </div>
+    <div class="cal-body">
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="cal-legend">
+      <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gold)"></span><span data-i18n="quest_deadline">Дедлайн квеста</span></span>
+      <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green)"></span><span data-i18n="step_deadline">Дедлайн действия</span></span>
+      <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--p-crit)"></span><span data-i18n="overdue">Просрочено</span></span>
+      <span class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gold-bright)"></span><span data-i18n="today_tasks">Задачи на сегодня</span></span>
+    </div>
+  </div>
+
+  <!-- ── SETTINGS VIEW ── -->
+  <div class="settings-view" id="view-settings">
+    <div style="max-width:560px;margin:0 auto;">
+
+      <div class="settings-section">
+        <div class="settings-section-title" data-i18n="set_general">Общие</div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label" data-i18n="set_autosave">Автосохранение</div>
+            <div class="settings-row-sub" data-i18n="set_autosave_sub">Сохранять при каждом изменении</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-autosave" checked onchange="applySettings()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label" data-i18n="set_lang">Язык / Language</div>
+          </div>
+          <div class="settings-btn-group">
+            <button class="settings-btn active" id="lang-ru" onclick="setLang('ru')">RU</button>
+            <button class="settings-btn" id="lang-en" onclick="setLang('en')">EN</button>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label" data-i18n="set_theme">Тема</div>
+          </div>
+          <div class="settings-btn-group">
+            <button class="settings-btn active" id="theme-dark" onclick="setTheme('dark')" data-i18n="theme_dark">Тёмная</button>
+            <button class="settings-btn" id="theme-light" onclick="setTheme('light')" data-i18n="theme_light">Светлая</button>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label" data-i18n="set_hide_done">Скрывать выполненные</div>
+            <div class="settings-row-sub" data-i18n="set_hide_done_sub">В правой панели и в списке действий</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-hidedone" onchange="applySettings()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Авто-перенос незавершённых</div>
+            <div class="settings-row-sub">Задачи «на сегодня» прошлых дней переносятся автоматически при открытии</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="set-autorollover" onchange="applySettings()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Стартовая страница</div>
+            <div class="settings-row-sub">Какую вкладку открывать при запуске</div>
+          </div>
+          <div class="settings-btn-group">
+            <button class="settings-btn" id="sp-quests" onclick="setStartPage('quests')">Квесты</button>
+            <button class="settings-btn" id="sp-today" onclick="setStartPage('today')">Сегодня</button>
+            <button class="settings-btn" id="sp-calendar" onclick="setStartPage('calendar')">Календарь</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Аккаунт</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label" id="settingsAuthLabel">Синхронизация</div>
+            <div class="settings-row-sub" id="settingsAuthSub">Войди чтобы синхронизировать данные</div>
+          </div>
+          <button class="settings-btn" id="settingsAuthBtn" style="border-color:var(--gold-dim);color:var(--gold);" onclick="handleAuthBtn()">ВОЙТИ</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title" data-i18n="set_data">Данные</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label" data-i18n="set_export">Экспорт</div>
+            <div class="settings-row-sub" data-i18n="set_export_sub">Скачать все квесты в JSON</div>
+          </div>
+          <button class="settings-btn" onclick="exportData()" data-i18n="btn_export">EXPORT</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label" data-i18n="set_import">Импорт</div>
+            <div class="settings-row-sub" data-i18n="set_import_sub">Загрузить квесты из JSON</div>
+          </div>
+          <button class="settings-btn" onclick="openImport()" data-i18n="btn_import">IMPORT</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label" style="color:var(--p-crit)" data-i18n="set_clear">Очистить всё</div>
+            <div class="settings-row-sub" data-i18n="set_clear_sub">Удалить все квесты без возможности восстановления</div>
+          </div>
+          <button class="settings-btn" style="border-color:var(--red-dim);color:var(--red)" onclick="clearAll()" data-i18n="clear">ОЧИСТИТЬ</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title" data-i18n="set_about">О приложении</div>
+        <div style="font-size:12px;color:var(--white-dim);line-height:1.7;opacity:.6;">
+          RAUJIN STUDIO // QUEST LOG v4.0<br>
+          Синхронизация через Supabase<br>
+          Работает офлайн · Данные в облаке
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span>RAUJIN STUDIO © 2026</span>
+    <div class="footer-stats" id="footerStats"></div>
+    <span>v3.0</span>
+  </div>
+
+</div>
+
+<!-- ── MOBILE BOTTOM NAV ── -->
+<div class="bottom-nav-mobile" id="bottomNav">
+  <button class="bnav-item active" id="mTab-quests" onclick="mSwitchView('quests')">
+    <span class="bnav-icon">⟁</span><span>Квесты</span>
+  </button>
+  <button class="bnav-item" id="mTab-inbox" onclick="mSwitchView('inbox')">
+    <span class="bnav-icon">📥</span><span>Inbox</span>
+  </button>
+  <button class="bnav-item" id="mTab-today" onclick="mSwitchView('today')">
+    <span class="bnav-icon">📅</span><span>Сегодня</span>
+  </button>
+  <button class="bnav-item" id="mTab-calendar" onclick="mSwitchView('calendar')">
+    <span class="bnav-icon">◫</span><span>Кал.</span>
+  </button>
+  <button class="bnav-item" id="mTab-settings" onclick="mSwitchView('settings')">
+    <span class="bnav-icon">⚙</span><span>Настр.</span>
+  </button>
+</div>
+
+<!-- ── AUTH MODAL ── -->
+<div class="auth-sheet-overlay" id="authOverlay" onclick="if(event.target===this)closeOverlay('authOverlay')">
+  <div class="auth-sheet">
+    <div class="auth-sheet-title" id="authTitle">// Войти</div>
+    <div class="auth-field"><label class="auth-label">Email</label><input class="auth-input" id="authEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
+    <div class="auth-field"><label class="auth-label">Пароль</label><input class="auth-input" id="authPassword" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter') authSubmit()"></div>
+    <div class="auth-err" id="authErr"></div>
+    <div class="auth-btns">
+      <button class="auth-btn-primary" id="authSubmitBtn" onclick="authSubmit()">ВОЙТИ</button>
+      <!-- Google OAuth — включить в Supabase → Authentication → Providers → Google -->
+      <!-- <button class="auth-btn-secondary" onclick="authGoogle()">G — Войти через Google</button> -->
+      <button class="auth-btn-secondary" onclick="closeOverlay('authOverlay')">Отмена</button>
+    </div>
+    <div class="auth-toggle-link" onclick="authToggle()"><span id="authToggleTxt">Нет аккаунта → Зарегистрироваться</span></div>
+  </div>
+</div>
+
+<!-- ── TRANSFER DATA MODAL ── -->
+<div class="auth-sheet-overlay" id="transferOverlay">
+  <div class="auth-sheet" style="max-width:380px;">
+    <div class="auth-sheet-title">// Перенести данные?</div>
+    <div style="font-size:13px;color:var(--white-dim);line-height:1.7;margin-bottom:16px;opacity:.85;">
+      У тебя есть <strong style="color:var(--gold);" id="transferCount"></strong> локальных квестов.<br>Перенести их в этот аккаунт?
+    </div>
+    <div style="font-size:11px;color:var(--white-dim);opacity:.5;margin-bottom:20px;line-height:1.6;">
+      Если откажешься — аккаунт начнёт с чистого листа. Локальные данные останутся в браузере.
+    </div>
+    <div class="auth-btns">
+      <button class="auth-btn-primary" onclick="confirmTransfer(true)">ПЕРЕНЕСТИ</button>
+      <button class="auth-btn-secondary" onclick="confirmTransfer(false)">НАЧАТЬ ЗАНОВО</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── IMPORT MODAL ── -->
+<div class="overlay" id="importOverlay" onclick="overlayBgClick(event,'importOverlay')">
+  <div class="modal">
+    <div class="modal-title">// <span data-i18n="import_title">ИМПОРТ ДАННЫХ</span></div>
+    <div class="modal-sub" data-i18n="import_sub">Загрузите JSON-файл, экспортированный ранее из Quest Log.</div>
+    <div class="import-drop-zone" id="dropZone"
+      onclick="document.getElementById('fileInput').click()"
+      ondragover="dragOver(event)" ondragleave="dragLeave()" ondrop="dropFile(event)">
+      <div class="import-drop-icon">⬇</div>
+      <div id="dropLabel" data-i18n="drop_file">Нажмите или перетащите файл сюда</div>
+      <div style="font-size:11px;margin-top:3px;opacity:.4;">.json</div>
+    </div>
+    <input type="file" id="fileInput" accept=".json" style="display:none" onchange="fileSelected(event)">
+    <div class="import-radio-group">
+      <label class="import-radio-label"><input type="radio" name="importMode" value="merge" checked><span data-i18n="import_merge">Объединить с текущими квестами</span></label>
+      <label class="import-radio-label"><input type="radio" name="importMode" value="replace"><span data-i18n="import_replace">Заменить всё</span></label>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-sm" onclick="closeOverlay('importOverlay')" data-i18n="cancel">Отмена</button>
+      <button class="btn-sm" id="importConfirmBtn" onclick="confirmImport()" disabled style="border-color:var(--gold-dim);color:var(--gold);" data-i18n="import_btn">Импортировать</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── QUEST EDIT MODAL ── -->
+<div class="overlay" id="questEditOverlay" onclick="overlayBgClick(event,'questEditOverlay')">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">// <span data-i18n="edit_quest">КВЕСТ</span></div>
+    <input type="hidden" id="qeId">
+    <div class="modal-field">
+      <label class="modal-label" data-i18n="name">Название</label>
+      <input class="modal-input" id="qeName" maxlength="120">
+    </div>
+    <div class="modal-row">
+      <div class="modal-field">
+        <label class="modal-label" data-i18n="priority">Приоритет</label>
+        <select class="modal-select" id="qePriority">
+          <option value="crit" data-i18n="p_crit">🔴 Сверхвысокий</option>
+          <option value="high" data-i18n="p_high">🟠 Высокий</option>
+          <option value="med" data-i18n="p_med">🟡 Средний</option>
+          <option value="low" data-i18n="p_low">🟢 Низкий</option>
+          <option value="none" data-i18n="p_none">⚪ Неважно</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label" data-i18n="deadline">Дедлайн</label>
+        <input class="modal-input" id="qeDeadline" type="date">
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" data-i18n="reward">Награда за выполнение</label>
+      <input class="modal-input" id="qeReward" maxlength="200" placeholder="Что ты получишь...">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" data-i18n="result">Результат (критерий завершения)</label>
+      <textarea class="modal-textarea" id="qeResult" maxlength="400" placeholder="Как поймёшь, что квест выполнен..."></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-sm" onclick="closeOverlay('questEditOverlay')" data-i18n="cancel">Отмена</button>
+      <button class="btn-sm" onclick="saveQuestEdit()" style="border-color:var(--gold-dim);color:var(--gold);" data-i18n="save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── STEP EDIT MODAL ── -->
+<div class="overlay" id="stepEditOverlay" onclick="overlayBgClick(event,'stepEditOverlay')">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-title">// <span data-i18n="edit_action">ДЕЙСТВИЕ</span></div>
+    <input type="hidden" id="seQid">
+    <input type="hidden" id="seSid">
+    <div class="modal-field">
+      <label class="modal-label" data-i18n="name">Название</label>
+      <input class="modal-input" id="seText" maxlength="300">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" data-i18n="note">Заметка</label>
+      <textarea class="modal-textarea" id="seNote" maxlength="400" style="min-height:50px;" placeholder="Детали, контекст..."></textarea>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" data-i18n="result">Результат (что считается выполненным)</label>
+      <textarea class="modal-textarea" id="seResult" maxlength="400" style="min-height:50px;" placeholder="Конкретный измеримый результат..."></textarea>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" data-i18n="reward">Моя награда</label>
+      <input class="modal-input" id="seReward" maxlength="200" placeholder="Что позволю себе за это...">
+    </div>
+    <div class="modal-row" style="grid-template-columns:1fr 1fr 1fr;">
+      <div class="modal-field">
+        <label class="modal-label" data-i18n="priority">Приоритет</label>
+        <select class="modal-select" id="sePriority">
+          <option value="crit">🔴 Сверхвысокий</option>
+          <option value="high">🟠 Высокий</option>
+          <option value="med">🟡 Средний</option>
+          <option value="low">🟢 Низкий</option>
+          <option value="none">⚪ Неважно</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label" data-i18n="start_date">Дата старта</label>
+        <input class="modal-input" id="seStartDate" type="date">
+      </div>
+      <div class="modal-field">
+        <label class="modal-label" data-i18n="deadline">Дедлайн</label>
+        <input class="modal-input" id="seDeadline" type="date">
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" data-i18n="today_task">Задача на сегодня</label>
+      <label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13px;color:var(--white-dim);">
+        <input type="checkbox" id="seTodayTask" style="accent-color:var(--gold);width:14px;height:14px;">
+        <span data-i18n="mark_today">Отметить как задачу на сегодня</span>
+      </label>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-sm" onclick="closeOverlay('stepEditOverlay')" data-i18n="cancel">Отмена</button>
+      <button class="btn-sm" onclick="saveStepEdit()" style="border-color:var(--gold-dim);color:var(--gold);" data-i18n="save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── QUICK ADD MODAL ── -->
+<div class="overlay" id="qaOverlay" onclick="overlayBgClick(event,'qaOverlay')">
+  <div class="qa-modal">
+    <div class="qa-header">
+      <div class="qa-title">// Быстрое добавление</div>
+      <div class="qa-subtitle">Действие будет добавлено в выбранный квест</div>
+    </div>
+    <div class="qa-body">
+      <div class="qa-field">
+        <label class="qa-label">Название задачи</label>
+        <input class="qa-input qa-input-large" id="qaText" placeholder="Что нужно сделать..." maxlength="300"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();document.getElementById('qaQuestSel').focus();}">
+      </div>
+      <div class="qa-row">
+        <div class="qa-field">
+          <label class="qa-label">Квест</label>
+          <select class="qa-select" id="qaQuestSel"></select>
+        </div>
+        <div class="qa-field">
+          <label class="qa-label">Приоритет</label>
+          <select class="qa-select" id="qaPriority">
+            <option value="none">⚪ Неважно</option>
+            <option value="crit">🔴 Сверхвысокий</option>
+            <option value="high">🟠 Высокий</option>
+            <option value="med">🟡 Средний</option>
+            <option value="low">🟢 Низкий</option>
+          </select>
+        </div>
+      </div>
+      <div class="qa-row">
+        <div class="qa-field">
+          <label class="qa-label">Дата старта</label>
+          <input class="qa-input" id="qaStartDate" type="date">
+        </div>
+        <div class="qa-field">
+          <label class="qa-label">Дедлайн</label>
+          <input class="qa-input" id="qaDeadline" type="date">
+        </div>
+      </div>
+      <div class="qa-field">
+        <label class="qa-label">Заметка / контекст</label>
+        <input class="qa-input" id="qaNote" placeholder="Детали, ссылки..." maxlength="400">
+      </div>
+      <div class="qa-field">
+        <label class="qa-label">Результат (критерий выполнения)</label>
+        <input class="qa-input" id="qaResult" placeholder="Как поймёшь что сделано..." maxlength="300">
+      </div>
+      <div class="qa-field">
+        <label class="qa-label" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Подзадачи</span>
+        </label>
+        <div class="qa-subtasks" id="qaSubtasks"></div>
+        <button class="qa-add-subtask" onclick="qaAddSubtask()">+ добавить подзадачу</button>
+      </div>
+      <div class="qa-field">
+        <label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-size:12px;color:var(--white-dim);">
+          <input type="checkbox" id="qaTodayTask" style="accent-color:var(--gold);width:14px;height:14px;">
+          <span>📅 Задача на сегодня</span>
+        </label>
+      </div>
+    </div>
+    <div class="qa-footer">
+      <button class="qa-btn-cancel" onclick="closeOverlay('qaOverlay')">Отмена</button>
+      <button class="qa-btn-primary" onclick="confirmQuickAdd()">ДОБАВИТЬ ЗАДАЧУ</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   I18N
+══════════════════════════════════════════ */
+const STRINGS = {
+  ru: {
+    tab_quests:'КВЕСТЫ', tab_calendar:'КАЛЕНДАРЬ',
+    btn_import:'[ IMPORT ]', btn_export:'[ EXPORT ]',
+    quests:'КВЕСТЫ', sort:'СОРТ.', sort_manual:'Вручную', sort_priority:'Приоритет',
+    sort_deadline:'Дедлайн', sort_date:'Дата', sort_name:'Название',
+    all:'Все', active:'Активные', done:'Завершённые',
+    p_crit:'Сверхвысокий', p_high:'Высокий', p_med:'Средний', p_low:'Низкий', p_none:'Неважно',
+    select_quest:'Выберите квест', or_create:'или создайте новый слева',
+    today:'Сегодня', quest_deadline:'Дедлайн квеста', step_deadline:'Дедлайн действия',
+    overdue:'Просрочено', today_tasks:'Задачи на сегодня',
+    set_general:'Общие', set_autosave:'Автосохранение', set_autosave_sub:'Сохранять при каждом изменении',
+    set_lang:'Язык', set_theme:'Тема', theme_dark:'Тёмная', theme_light:'Светлая',
+    set_hide_done:'Скрывать выполненные', set_hide_done_sub:'В правой панели',
+    set_data:'Данные', set_export:'Экспорт', set_export_sub:'Скачать в JSON',
+    set_import:'Импорт', set_import_sub:'Загрузить из JSON',
+    set_clear:'Очистить всё', set_clear_sub:'Удалить без восстановления', clear:'ОЧИСТИТЬ',
+    set_about:'О приложении',
+    import_title:'ИМПОРТ ДАННЫХ', import_sub:'Загрузите JSON из Quest Log.',
+    drop_file:'Нажмите или перетащите файл', import_merge:'Объединить с текущими',
+    import_replace:'Заменить всё', import_btn:'Импортировать',
+    cancel:'Отмена', save:'Сохранить',
+    edit_quest:'КВЕСТ', edit_action:'ДЕЙСТВИЕ',
+    name:'Название', priority:'Приоритет', deadline:'Дедлайн',
+    reward:'Награда за выполнение', result:'Результат',
+    note:'Заметка', today_task:'Задача на сегодня', mark_today:'На сегодня',
+    autosave:'AUTOSAVE', saved:'SAVED',
+    quest_added:'Квест добавлен', step_added:'Действие добавлено', step_copied:'Действие скопировано',
+    exported:'Экспорт выполнен', imported_n:'Импортировано', quests_lbl:'квестов',
+    bad_file:'Неверный формат файла', need_json:'Нужен .json файл',
+    confirm_delete:'Удалить?', confirm_clear:'Удалить ВСЕ данные?',
+    tab_today:'СЕГОДНЯ', start_date:'Дата старта', refresh:'↺ Обновить',
+    today_no_tasks:'Нет задач на сегодня', today_section_overdue:'Просроченные',
+    today_section_today:'Задачи на сегодня', today_section_starting:'Стартуют сегодня',
+    today_section_deadline:'Дедлайн сегодня', go_to:'→',
+  },
+  en: {
+    tab_quests:'QUESTS', tab_calendar:'CALENDAR',
+    btn_import:'[ IMPORT ]', btn_export:'[ EXPORT ]',
+    quests:'QUESTS', sort:'SORT', sort_manual:'Manual', sort_priority:'Priority',
+    sort_deadline:'Deadline', sort_date:'Date', sort_name:'Name',
+    all:'All', active:'Active', done:'Completed',
+    p_crit:'Critical', p_high:'High', p_med:'Medium', p_low:'Low', p_none:'None',
+    select_quest:'Select a quest', or_create:'or create a new one on the left',
+    today:'Today', quest_deadline:'Quest deadline', step_deadline:'Action deadline',
+    overdue:'Overdue', today_tasks:"Today's tasks",
+    set_general:'General', set_autosave:'Autosave', set_autosave_sub:'Save on every change',
+    set_lang:'Language', set_theme:'Theme', theme_dark:'Dark', theme_light:'Light',
+    set_hide_done:'Hide completed', set_hide_done_sub:'In the right panel',
+    set_data:'Data', set_export:'Export', set_export_sub:'Download as JSON',
+    set_import:'Import', set_import_sub:'Load from JSON',
+    set_clear:'Clear all', set_clear_sub:'Delete without recovery', clear:'CLEAR',
+    set_about:'About',
+    import_title:'IMPORT DATA', import_sub:'Upload a JSON file exported from Quest Log.',
+    drop_file:'Click or drag file here', import_merge:'Merge with current quests',
+    import_replace:'Replace all', import_btn:'Import',
+    cancel:'Cancel', save:'Save',
+    edit_quest:'QUEST', edit_action:'ACTION',
+    name:'Name', priority:'Priority', deadline:'Deadline',
+    reward:'Reward for completion', result:'Result / success criteria',
+    note:'Note', today_task:"Today's task", mark_today:'Mark as today',
+    autosave:'AUTOSAVE', saved:'SAVED',
+    quest_added:'Quest added', step_added:'Action added', step_copied:'Action copied',
+    exported:'Export done', imported_n:'Imported', quests_lbl:'quests',
+    bad_file:'Invalid file format', need_json:'Need a .json file',
+    confirm_delete:'Delete?', confirm_clear:'Delete ALL data?',
+    tab_today:'TODAY', start_date:'Start date', refresh:'↺ Refresh',
+    today_no_tasks:'No tasks for today', today_section_overdue:'Overdue',
+    today_section_today:"Today's tasks", today_section_starting:'Starting today',
+    today_section_deadline:'Deadline today', go_to:'→',
+  }
+};
+
+function t(key) { return (STRINGS[cfg.lang] || STRINGS.ru)[key] || key; }
+
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.dataset.i18n;
+    if (k) el.textContent = t(k);
+  });
+  // placeholders
+  const nqi = document.getElementById('newQuestInput');
+  if (nqi) nqi.placeholder = t('p_none') === 'None' ? 'New quest...' : 'Новый квест...';
+}
+
+/* ══════════════════════════════════════════
+   CONFIG / STATE
+══════════════════════════════════════════ */
+let cfg = { lang:'ru', theme:'dark', autosave:true, hideDone:false, startPage:'quests', autoRollover:false };
+let todayViewDate = null;
+let state = { quests:[], activeId:null, inbox:[] };
+let nextId = 1;
+let pendingImport = null;
+const expanded = {};
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let dragSrcIdx = null;
+
+/* ══════════════════════════════════════════
+   STORAGE
+══════════════════════════════════════════ */
+function storageKey(suffix) {
+  const uid = currentUser?.id || 'guest';
+  return `rql_${uid}_${suffix}`;
+}
+
+function save() {
+  localStorage.setItem(storageKey('state'), JSON.stringify(state));
+  localStorage.setItem(storageKey('nid'), nextId);
+  localStorage.setItem('rql_cfg', JSON.stringify(cfg));
+  const n = new Date();
+  const el = document.getElementById('saveTime');
+  if (el) el.textContent = `${t('saved')} ${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+}
+
+function maybeSave() { if (cfg.autosave) save(); }
+
+function load() {
+  const uid = currentUser?.id || 'guest';
+  // try user-specific key, fallback to legacy
+  try {
+    const r = localStorage.getItem(`rql_${uid}_state`) || localStorage.getItem('rql_state3');
+    if (r) state = JSON.parse(r);
+  } catch(e){}
+  try {
+    const c = localStorage.getItem('rql_cfg') || localStorage.getItem('rql_cfg3');
+    if (c) cfg = {...cfg, ...JSON.parse(c)};
+  } catch(e){}
+  const nid = localStorage.getItem(`rql_${uid}_nid`) || localStorage.getItem('rql_nid3');
+  if (nid) nextId = parseInt(nid)||1;
+  if(!state.quests) state.quests=[];
+  state.quests.forEach(q=>{
+    if(!q.steps) q.steps=[];
+    if(q.starred===undefined) q.starred=false;
+    if(!q.priority) q.priority='none';
+    q.steps.forEach((s,i)=>{
+      if(!s.id) s.id=q.id*1000+i;
+      if(!s.substeps) s.substeps=[];
+      if(!s.priority) s.priority='none';
+      s.substeps.forEach((ss,j)=>{ if(!ss.id) ss.id=s.id*100+j; });
+    });
+    bumpAll(q);
+  });
+}
+
+function bumpAll(q) {
+  bumpId(q.id);
+  q.steps.forEach(s=>{ bumpId(s.id); (s.substeps||[]).forEach(ss=>bumpId(ss.id)); });
+}
+function bumpId(id){ if(id>=nextId) nextId=id+1; }
+function pad(n){ return String(n).padStart(2,'0'); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function nowStr(){ const n=new Date(); return `${pad(n.getDate())}.${pad(n.getMonth()+1)} ${pad(n.getHours())}:${pad(n.getMinutes())}`; }
+function todayISO_static(){ const n=new Date(); return `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`; }
+function todayISO(){ return todayISO_static(); }
+function isoAddDays(iso,d){ const dt=new Date(iso+'T12:00:00'); dt.setDate(dt.getDate()+d); return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`; }
+
+/* ══════════════════════════════════════════
+   SETTINGS
+══════════════════════════════════════════ */
+function applySettings() {
+  cfg.autosave = document.getElementById('set-autosave').checked;
+  cfg.hideDone = document.getElementById('set-hidedone').checked;
+  cfg.autoRollover = document.getElementById('set-autorollover')?.checked || false;
+  const dot = document.getElementById('statusDot');
+  if (dot) dot.className = 'status-dot' + (cfg.autosave ? '' : ' off');
+  maybeSave();
+  render(); renderDetail();
+}
+
+function setStartPage(page) {
+  cfg.startPage = page;
+  ['quests','today','calendar'].forEach(p =>
+    document.getElementById('sp-'+p)?.classList.toggle('active', p===page));
+  maybeSave();
+}
+
+function setLang(lang) {
+  cfg.lang = lang;
+  ['ru','en'].forEach(l => document.getElementById('lang-'+l)?.classList.toggle('active', l===lang));
+  applyI18n(); maybeSave(); render(); renderDetail(); renderCalendar();
+}
+
+function setTheme(theme) {
+  cfg.theme = theme;
+  document.body.className = theme;
+  ['dark','light'].forEach(th => document.getElementById('theme-'+th)?.classList.toggle('active', th===theme));
+  maybeSave();
+}
+
+function loadSettings() {
+  document.getElementById('set-autosave').checked = cfg.autosave;
+  document.getElementById('set-hidedone').checked = cfg.hideDone;
+  if (document.getElementById('set-autorollover'))
+    document.getElementById('set-autorollover').checked = cfg.autoRollover || false;
+  document.getElementById('lang-'+cfg.lang)?.classList.add('active');
+  document.getElementById('lang-'+(cfg.lang==='ru'?'en':'ru'))?.classList.remove('active');
+  document.getElementById('theme-'+cfg.theme)?.classList.add('active');
+  document.getElementById('theme-'+(cfg.theme==='dark'?'light':'dark'))?.classList.remove('active');
+  document.body.className = cfg.theme;
+  const dot = document.getElementById('statusDot');
+  if (dot) dot.className = 'status-dot' + (cfg.autosave ? '' : ' off');
+  const sp = cfg.startPage || 'quests';
+  ['quests','today','calendar'].forEach(p =>
+    document.getElementById('sp-'+p)?.classList.toggle('active', p===sp));
+}
+
+function clearAll() {
+  if (!confirm(t('confirm_clear'))) return;
+  state = { quests:[], activeId:null, inbox:[] }; nextId=1;
+  save(); render(); renderDetail(); renderInbox();
+}
+
+/* ══════════════════════════════════════════
+   VIEW SWITCHING
+══════════════════════════════════════════ */
+function switchView(v) {
+  ['quests','inbox','today','calendar','settings'].forEach(name => {
+    const viewEl = document.getElementById('view-'+name);
+    const tabEl  = document.getElementById('tab-'+name);
+    if (viewEl) viewEl.classList.toggle('active', name===v);
+    if (tabEl)  tabEl.classList.toggle('active', name===v);
+  });
+  if (v==='calendar') renderCalendar();
+  if (v==='today')    renderToday();
+  if (v==='inbox')    renderInbox();
+}
+
+/* ══════════════════════════════════════════
+   EXPORT / IMPORT
+══════════════════════════════════════════ */
+function exportData() {
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`raujin-quests-${Date.now()}.json`;
+  a.click(); URL.revokeObjectURL(url); toast(t('exported'));
+}
+function openImport() {
+  pendingImport=null;
+  document.getElementById('dropLabel').textContent=t('drop_file');
+  document.getElementById('dropZone').style.borderColor='';
+  document.getElementById('fileInput').value='';
+  document.getElementById('importConfirmBtn').disabled=true;
+  document.getElementById('importOverlay').classList.add('show');
+}
+function closeOverlay(id) { document.getElementById(id).classList.remove('show'); }
+function overlayBgClick(e,id) { if(e.target===document.getElementById(id)) closeOverlay(id); }
+function dragOver(e){e.preventDefault();document.getElementById('dropZone').classList.add('dragover');}
+function dragLeave(){document.getElementById('dropZone').classList.remove('dragover');}
+function dropFile(e){e.preventDefault();dragLeave();const f=e.dataTransfer.files[0];if(f)readFile(f);}
+function fileSelected(e){const f=e.target.files[0];if(f)readFile(f);}
+function readFile(file) {
+  if(!file.name.endsWith('.json')){toast(t('need_json'));return;}
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      if(!d.quests||!Array.isArray(d.quests)) throw new Error();
+      pendingImport=d;
+      document.getElementById('dropLabel').textContent=`✓  ${file.name}  (${d.quests.length})`;
+      document.getElementById('dropZone').style.borderColor='var(--green-bright)';
+      document.getElementById('importConfirmBtn').disabled=false;
+    }catch{
+      toast(t('bad_file'));
+      document.getElementById('dropLabel').textContent='✕  Error';
+      document.getElementById('dropZone').style.borderColor='var(--p-crit)';
+    }
+  };
+  r.readAsText(file);
+}
+function confirmImport() {
+  if(!pendingImport) return;
+  const mode=document.querySelector('input[name=importMode]:checked').value;
+  const count=pendingImport.quests.length;
+  if(mode==='replace'){ state.quests=pendingImport.quests; state.activeId=null; }
+  else {
+    const imp=pendingImport.quests.map(q=>({...q,id:nextId++,steps:(q.steps||[]).map(s=>({...s,id:nextId++,substeps:(s.substeps||[]).map(ss=>({...ss,id:nextId++}))})) }));
+    state.quests=[...state.quests,...imp];
+  }
+  state.quests.forEach(bumpAll);
+  save(); render(); renderDetail(); closeOverlay('importOverlay');
+  toast(`${t('imported_n')}: ${count} ${t('quests_lbl')}`);
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+function toast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent='// '+msg; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2400);
+}
+
+/* ══════════════════════════════════════════
+   QUESTS CRUD
+══════════════════════════════════════════ */
+function addQuest() {
+  const inp=document.getElementById('newQuestInput');
+  const name=inp.value.trim(); if(!name) return;
+  const q={ id:nextId++, name, done:false, starred:false, priority:'none',
+    createdAt:new Date().toLocaleDateString('ru-RU',{day:'2-digit',month:'short'}),
+    createdTs:Date.now(), deadline:'', reward:'', result:'', steps:[] };
+  state.quests.unshift(q);
+  inp.value=''; maybeSave(); render();
+  // On mobile open detail drawer, on desktop use normal selectQuest
+  if (window.innerWidth < 768) {
+    state.activeId = q.id; renderDetail();
+    document.querySelector('.right-panel')?.classList.add('mobile-open');
+    document.getElementById('mobileBackBar').style.display='flex';
+  } else {
+    selectQuest(q.id);
+  }
+  toast(t('quest_added'));
+}
+
+function deleteQuest(id) {
+  if(!confirm(t('confirm_delete'))) return;
+  state.quests=state.quests.filter(q=>q.id!==id);
+  if(state.activeId===id) state.activeId=null;
+  maybeSave(); render(); renderDetail();
+}
+
+function toggleQuest(id) {
+  const q=state.quests.find(q=>q.id===id); if(!q) return;
+  q.done=!q.done; q.doneAt=q.done?nowStr():null;
+  maybeSave(); render(); if(state.activeId===id) renderDetail();
+}
+
+function toggleStar(id) {
+  const q=state.quests.find(q=>q.id===id); if(!q) return;
+  q.starred=!q.starred; maybeSave(); render(); if(state.activeId===id) renderDetail();
+}
+
+function selectQuest(id) { state.activeId=id; render(); renderDetail(); }
+
+function openQuestEdit(id) {
+  const q=state.quests.find(q=>q.id===id); if(!q) return;
+  document.getElementById('qeId').value=id;
+  document.getElementById('qeName').value=q.name;
+  document.getElementById('qePriority').value=q.priority||'none';
+  document.getElementById('qeDeadline').value=q.deadline||'';
+  document.getElementById('qeReward').value=q.reward||'';
+  document.getElementById('qeResult').value=q.result||'';
+  document.getElementById('questEditOverlay').classList.add('show');
+}
+
+function saveQuestEdit() {
+  const id=parseInt(document.getElementById('qeId').value);
+  const q=state.quests.find(q=>q.id===id); if(!q) return;
+  q.name=document.getElementById('qeName').value.trim()||q.name;
+  q.priority=document.getElementById('qePriority').value;
+  q.deadline=document.getElementById('qeDeadline').value;
+  q.reward=document.getElementById('qeReward').value.trim();
+  q.result=document.getElementById('qeResult').value.trim();
+  maybeSave(); render(); if(state.activeId===id) renderDetail();
+  closeOverlay('questEditOverlay');
+}
+
+/* ══════════════════════════════════════════
+   STEPS CRUD
+══════════════════════════════════════════ */
+function addStep() {
+  const q=state.quests.find(q=>q.id===state.activeId); if(!q) return;
+  const inp=document.getElementById('newStepInput');
+  const text=inp?inp.value.trim():''; if(!text) return;
+  const pri=document.getElementById('newStepPri')?.value||'none';
+  const dl=document.getElementById('newStepDl')?.value||'';
+  q.steps.push({id:nextId++,text,note:'',result:'',reward:'',priority:pri,deadline:dl,done:false,todayTask:false,substeps:[]});
+  inp.value='';
+  if(document.getElementById('newStepDl')) document.getElementById('newStepDl').value='';
+  if(document.getElementById('newStepPri')) document.getElementById('newStepPri').value='none';
+  maybeSave(); renderDetail(); render(); toast(t('step_added'));
+}
+
+function deleteStep(qid,sid) {
+  const q=state.quests.find(q=>q.id===qid); if(!q) return;
+  q.steps=q.steps.filter(s=>s.id!==sid); maybeSave(); renderDetail(); render();
+}
+
+function copyStep(qid,sid) {
+  const q=state.quests.find(q=>q.id===qid); if(!q) return;
+  const s=q.steps.find(s=>s.id===sid); if(!s) return;
+  const copy={...s,id:nextId++,done:false,doneAt:null,todayTask:false,
+    substeps:(s.substeps||[]).map(ss=>({...ss,id:nextId++,done:false,doneAt:null}))};
+  const idx=q.steps.findIndex(s=>s.id===sid);
+  q.steps.splice(idx+1,0,copy);
+  maybeSave(); renderDetail(); render(); toast(t('step_copied'));
+}
+
+function toggleStep(qid,sid) {
+  const q=state.quests.find(q=>q.id===qid); if(!q) return;
+  const s=q.steps.find(s=>s.id===sid); if(!s) return;
+  s.done=!s.done; s.doneAt=s.done?nowStr():null;
+  maybeSave(); renderDetail(); renderQuestList();
+}
+
+function openStepEdit(qid,sid) {
+  const q=state.quests.find(q=>q.id===qid); if(!q) return;
+  const s=q.steps.find(s=>s.id===sid); if(!s) return;
+  document.getElementById('seQid').value=qid;
+  document.getElementById('seSid').value=sid;
+  document.getElementById('seText').value=s.text||'';
+  document.getElementById('seNote').value=s.note||'';
+  document.getElementById('seResult').value=s.result||'';
+  document.getElementById('seReward').value=s.reward||'';
+  document.getElementById('sePriority').value=s.priority||'none';
+  document.getElementById('seStartDate').value=s.startDate||'';
+  document.getElementById('seDeadline').value=s.deadline||'';
+  document.getElementById('seTodayTask').checked=!!s.todayTask;
+  document.getElementById('stepEditOverlay').classList.add('show');
+}
+
+function saveStepEdit() {
+  const qid=parseInt(document.getElementById('seQid').value);
+  const sid=parseInt(document.getElementById('seSid').value);
+  const q=state.quests.find(q=>q.id===qid); if(!q) return;
+  const s=q.steps.find(s=>s.id===sid); if(!s) return;
+  s.text=document.getElementById('seText').value.trim()||s.text;
+  s.note=document.getElementById('seNote').value.trim();
+  s.result=document.getElementById('seResult').value.trim();
+  s.reward=document.getElementById('seReward').value.trim();
+  s.priority=document.getElementById('sePriority').value;
+  s.startDate=document.getElementById('seStartDate').value;
+  s.deadline=document.getElementById('seDeadline').value;
+  s.todayTask=document.getElementById('seTodayTask').checked;
+  maybeSave(); renderDetail(); closeOverlay('stepEditOverlay');
+}
+
+/* ══════════════════════════════════════════
+   SUBSTEPS
+══════════════════════════════════════════ */
+function toggleExpand(sid) {
+  expanded[sid]=!expanded[sid];
+  const w=document.getElementById('sub-wrap-'+sid); if(w) w.classList.toggle('open',!!expanded[sid]);
+  const b=document.getElementById('exp-btn-'+sid); if(b) b.textContent=expanded[sid]?'▼':'▶';
+}
+
+function addSubstep(sid) {
+  const q=state.quests.find(q=>q.id===state.activeId); if(!q) return;
+  const s=q.steps.find(s=>s.id===sid); if(!s) return;
+  const inp=document.getElementById('add-ss-'+sid); if(!inp) return;
+  const text=inp.value.trim(); if(!text) return;
+  s.substeps.push({id:nextId++,text,done:false});
+  inp.value=''; expanded[sid]=true;
+  maybeSave(); renderDetail(); render();
+}
+
+function toggleSubstep(qid,sid,ssid) {
+  const q=state.quests.find(q=>q.id===qid); if(!q) return;
+  const s=q.steps.find(s=>s.id===sid); if(!s) return;
+  const ss=s.substeps.find(ss=>ss.id===ssid); if(!ss) return;
+  ss.done=!ss.done; ss.doneAt=ss.done?nowStr():null;
+  maybeSave(); renderDetail(); renderQuestList();
+}
+
+function deleteSubstep(sid,ssid) {
+  const q=state.quests.find(q=>q.id===state.activeId); if(!q) return;
+  const s=q.steps.find(s=>s.id===sid); if(!s) return;
+  s.substeps=s.substeps.filter(ss=>ss.id!==ssid);
+  maybeSave(); renderDetail(); render();
+}
+
+function editSubstepInline(sid,ssid) {
+  const q=state.quests.find(q=>q.id===state.activeId); if(!q) return;
+  const s=q.steps.find(s=>s.id===sid); if(!s) return;
+  const ss=s.substeps.find(ss=>ss.id===ssid); if(!ss) return;
+  const cell=document.getElementById('sstxt-'+ssid); if(!cell) return;
+  cell.innerHTML=`<input class="edit-inline-sm" id="ess-${ssid}" value="${esc(ss.text)}" maxlength="300">`;
+  const inp=document.getElementById('ess-'+ssid); inp.focus(); inp.select();
+  const commit=e=>{ if(e.type==='blur'||e.key==='Enter'){const v=inp.value.trim();if(v)ss.text=v;maybeSave();renderDetail();} if(e.key==='Escape') renderDetail(); };
+  inp.onblur=commit; inp.onkeydown=commit;
+}
+
+/* ══════════════════════════════════════════
+   DRAG-DROP (steps reorder)
+══════════════════════════════════════════ */
+function onDragStart(e,idx){ dragSrcIdx=idx; e.dataTransfer.effectAllowed='move'; }
+function onDragOver(e,idx){ e.preventDefault(); e.dataTransfer.dropEffect='move'; document.querySelectorAll('.step-item').forEach((el,i)=>el.classList.toggle('drag-over',i===idx)); }
+function onDragLeave(){ document.querySelectorAll('.step-item').forEach(el=>el.classList.remove('drag-over')); }
+function onDrop(e,idx){
+  e.preventDefault(); onDragLeave();
+  if(dragSrcIdx===null||dragSrcIdx===idx) return;
+  const q=state.quests.find(q=>q.id===state.activeId); if(!q) return;
+  const steps=[...q.steps];
+  const [moved]=steps.splice(dragSrcIdx,1); steps.splice(idx,0,moved);
+  q.steps=steps; dragSrcIdx=null;
+  maybeSave(); renderDetail();
+}
+
+/* ══════════════════════════════════════════
+   PRIORITY HELPERS
+══════════════════════════════════════════ */
+const PRI_ORDER={crit:0,high:1,med:2,low:3,none:4};
+const PRI_LABELS={crit:'CRIT',high:'HIGH',med:'MED',low:'LOW',none:'—'};
+
+function priTagHTML(p) {
+  return `<span class="p-tag p-tag-${p}">${PRI_LABELS[p]||'—'}</span>`;
+}
+
+function deadlineHTML(dl,small=false) {
+  if(!dl) return '';
+  const today=todayISO();
+  const diffDays=Math.ceil((new Date(dl)-new Date(today))/(1000*60*60*24));
+  let cls='deadline-badge', label=dl;
+  if(diffDays<0){ cls+=' overdue'; label=cfg.lang==='ru'?`просрочено (${dl})`:`overdue (${dl})`; }
+  else if(diffDays===0){ cls+=' soon'; label=cfg.lang==='ru'?'сегодня':'today'; }
+  else if(diffDays<=3){ cls+=' soon'; label=`${dl} (${diffDays}d)`; }
+  return `<span class="${cls}" style="font-size:${small?'10px':'11px'};">⏰ ${label}</span>`;
+}
+
+/* ══════════════════════════════════════════
+   SORTED QUEST LIST
+══════════════════════════════════════════ */
+function getSortedFiltered() {
+  const sort=document.getElementById('sortSelect')?.value||'manual';
+  const filterPri=document.getElementById('filterPriority')?.value||'all';
+  const filterSt=document.getElementById('filterStatus')?.value||'all';
+  let list=[...state.quests];
+
+  if(filterPri!=='all') list=list.filter(q=>q.priority===filterPri);
+  if(filterSt==='active') list=list.filter(q=>!q.done);
+  if(filterSt==='done') list=list.filter(q=>q.done);
+
+  if(sort==='manual'){
+    const starred=list.filter(q=>q.starred&&!q.done);
+    const active=list.filter(q=>!q.starred&&!q.done);
+    const done=list.filter(q=>q.done);
+    return [...starred,...active,...done];
+  }
+  if(sort==='priority') list.sort((a,b)=>(PRI_ORDER[a.priority]||4)-(PRI_ORDER[b.priority]||4));
+  if(sort==='deadline') list.sort((a,b)=>{
+    if(!a.deadline&&!b.deadline) return 0;
+    if(!a.deadline) return 1; if(!b.deadline) return -1;
+    return a.deadline.localeCompare(b.deadline);
+  });
+  if(sort==='date') list.sort((a,b)=>(b.createdTs||0)-(a.createdTs||0));
+  if(sort==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
+  return list;
+}
+
+/* ══════════════════════════════════════════
+   RENDER — QUEST LIST
+══════════════════════════════════════════ */
+function renderQuestList() {
+  const el=document.getElementById('questList');
+  const list=getSortedFiltered();
+  if(!list.length){
+    el.innerHTML=`<div class="empty-state" style="flex:1;padding:20px;"><div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.35;">${t('all')}</div></div>`;
+  } else {
+    el.innerHTML=list.map(q=>{
+      const allSt=q.steps.length+q.steps.reduce((a,s)=>a+(s.substeps||[]).length,0);
+      const doneSt=q.steps.filter(s=>s.done).length+q.steps.reduce((a,s)=>a+(s.substeps||[]).filter(ss=>ss.done).length,0);
+      const meta=allSt>0?`${doneSt}/${allSt}`:'—';
+      const dl=q.deadline?deadlineHTML(q.deadline,true):'';
+      const pri=q.priority&&q.priority!=='none'?priTagHTML(q.priority):'';
+      const cls=['quest-item',
+        state.activeId===q.id?'active':'',
+        q.done?'done':'',
+        q.starred?'starred':'',
+        q.priority&&q.priority!=='none'?'p-'+q.priority:''
+      ].filter(Boolean).join(' ');
+      return `<div class="${cls}" onclick="selectQuest(${q.id})">
+        <button class="star-btn" onclick="event.stopPropagation();toggleStar(${q.id})">★</button>
+        <div class="quest-status-icon" onclick="event.stopPropagation();toggleQuest(${q.id})">${q.done?'✓':''}</div>
+        <div class="quest-item-body">
+          <div class="quest-item-name">${esc(q.name)}</div>
+          <div class="quest-item-meta">${pri}${pri&&(dl||meta)?'':''}<span>${meta}</span>${dl}</div>
+        </div>
+        <div class="quest-item-actions">
+          <button class="icon-btn" onclick="event.stopPropagation();openQuestEdit(${q.id})">✎</button>
+          <button class="icon-btn del" onclick="event.stopPropagation();deleteQuest(${q.id})">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  const activeCount=state.quests.filter(q=>!q.done).length;
+  document.getElementById('questCount').textContent=`${activeCount} ${t('active').toLowerCase()}`;
+}
+
+/* ══════════════════════════════════════════
+   RENDER — DETAIL
+══════════════════════════════════════════ */
+function renderDetail() {
+  const q=state.quests.find(q=>q.id===state.activeId);
+  const emptyEl=document.getElementById('emptyState');
+  const detailEl=document.getElementById('questDetail');
+  if(!q){ emptyEl.style.display='flex'; detailEl.style.display='none'; return; }
+  emptyEl.style.display='none';
+  detailEl.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;height:100%;';
+
+  const allSt=q.steps.reduce((a,s)=>a+1+(s.substeps||[]).length,0);
+  const doneSt=q.steps.reduce((a,s)=>a+(s.done?1:0)+(s.substeps||[]).filter(ss=>ss.done).length,0);
+  const pct=allSt>0?Math.round(doneSt/allSt*100):0;
+
+  let visSteps=cfg.hideDone?q.steps.filter(s=>!s.done):q.steps;
+  // sort steps by priority if selected
+  const sort=document.getElementById('sortSelect')?.value||'manual';
+  if(sort==='priority') visSteps=[...visSteps].sort((a,b)=>(PRI_ORDER[a.priority]||4)-(PRI_ORDER[b.priority]||4));
+
+  const stepsHTML=!q.steps.length
+    ?`<div class="empty-state" style="opacity:.25;padding:20px;"><div class="empty-label">${t('or_create')}</div></div>`
+    :(!visSteps.length
+      ?`<div class="empty-state" style="opacity:.25;padding:20px;"><div class="empty-label">${t('done')}</div></div>`
+      :visSteps.map((s,i)=>renderStepHTML(q,s,i,q.steps.indexOf(s))).join(''));
+
+  detailEl.innerHTML=`
+    <div class="quest-detail-header">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <div style="flex:1;">
+          <div class="quest-detail-title" id="detail-title" ondblclick="startEditTitle()" title="dbl-click to edit">${esc(q.name)}</div>
+          <div class="quest-detail-id">QUEST_${String(q.id).padStart(4,'0')} · ${q.createdAt}</div>
+        </div>
+        ${priTagHTML(q.priority||'none')}
+      </div>
+      ${q.result?`<div style="font-size:12px;color:var(--green-bright);margin-top:6px;opacity:.8;">→ ${esc(q.result)}</div>`:''}
+      ${q.deadline?`<div style="margin-top:5px;">${deadlineHTML(q.deadline)}</div>`:''}
+      ${q.reward?`<div class="reward-banner"><span class="reward-icon">🏆</span>${esc(q.reward)}</div>`:''}
+      <div class="detail-actions-row">
+        <span class="tag ${q.done?'tag-done':'tag-active'}">${q.done?'✓ '+t('done'):'● '+t('active')}</span>
+        ${q.starred?`<span class="tag tag-star">★</span>`:''}
+        <button class="btn-sm" onclick="toggleQuest(${q.id})">${q.done?t('active'):t('done')}</button>
+        <button class="btn-sm" onclick="toggleStar(${q.id})">${q.starred?'★ −':'☆ +'}</button>
+        <button class="btn-sm" onclick="openQuestEdit(${q.id})">✎ ${t('edit_quest')}</button>
+        <button class="btn-sm danger" onclick="deleteQuest(${q.id})">✕</button>
+      </div>
+      ${allSt>0?`<div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><span class="progress-text">${doneSt}/${allSt} · ${pct}%</span></div>`:''}
+    </div>
+    <div class="panel-header" style="flex-shrink:0;">
+      <span class="panel-label">${t('tab_quests')==='QUESTS'?'ACTIONS':'ДЕЙСТВИЯ'}</span>
+      <span class="panel-count">${q.steps.length}</span>
+    </div>
+    <div class="steps-area">${stepsHTML}</div>
+    <div class="add-step-form">
+      <div class="add-step-row">
+        <input class="add-step-input" id="newStepInput" placeholder="${cfg.lang==='ru'?'Новое действие...':'New action...'}"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addStep()}" maxlength="300">
+        <button class="add-btn" onclick="addStep()">+</button>
+      </div>
+      <div class="add-step-extras">
+        <select class="add-step-sel" id="newStepPri">
+          <option value="none">⚪ ${t('p_none')}</option>
+          <option value="crit">🔴 ${t('p_crit')}</option>
+          <option value="high">🟠 ${t('p_high')}</option>
+          <option value="med">🟡 ${t('p_med')}</option>
+          <option value="low">🟢 ${t('p_low')}</option>
+        </select>
+        <input class="add-step-sel" id="newStepDl" type="date" style="color:var(--white-dim);" title="${t('deadline')}">
+        <span style="font-size:11px;color:var(--white-dim);opacity:.4;align-self:center;">${t('deadline')}</span>
+      </div>
+    </div>`;
+}
+
+function startEditTitle() {
+  const q=state.quests.find(q=>q.id===state.activeId); if(!q) return;
+  const cell=document.getElementById('detail-title'); if(!cell) return;
+  cell.outerHTML=`<input class="edit-inline-title" id="edit-dt" value="${esc(q.name)}">`;
+  const inp=document.getElementById('edit-dt'); inp.focus(); inp.select();
+  const commit=e=>{ if(e.type==='blur'||e.key==='Enter'){const v=inp.value.trim();if(v)q.name=v;maybeSave();render();renderDetail();} if(e.key==='Escape') renderDetail(); };
+  inp.onblur=commit; inp.onkeydown=commit;
+}
+
+function renderStepHTML(q,s,visIdx,realIdx) {
+  const isExp=!!expanded[s.id];
+  const subAll=(s.substeps||[]).length;
+  const subDone=(s.substeps||[]).filter(ss=>ss.done).length;
+  const visSubs=cfg.hideDone?(s.substeps||[]).filter(ss=>!ss.done):(s.substeps||[]);
+  const subsHTML=visSubs.map(ss=>`
+    <div class="substep-item${ss.done?' substep-done':''}">
+      <div class="substep-check" onclick="toggleSubstep(${q.id},${s.id},${ss.id})">${ss.done?'✓':''}</div>
+      <div class="substep-body">
+        <div class="substep-text" id="sstxt-${ss.id}" ondblclick="editSubstepInline(${s.id},${ss.id})">${esc(ss.text)}</div>
+        ${ss.done&&ss.doneAt?`<div class="substep-done-time">✓ ${ss.doneAt}</div>`:''}
+      </div>
+      <div class="substep-actions">
+        <button class="icon-btn" onclick="editSubstepInline(${s.id},${ss.id})">✎</button>
+        <button class="icon-btn del" onclick="deleteSubstep(${s.id},${ss.id})">✕</button>
+      </div>
+    </div>`).join('');
+
+  const dl=s.deadline?deadlineHTML(s.deadline,true):'';
+  const today=todayISO();
+  const startBadge=s.startDate&&!s.done?(()=>{
+    const diff=Math.ceil((new Date(s.startDate)-new Date(today))/(86400000));
+    if(diff>0) return `<span style="font-size:10px;color:var(--green-bright);padding:1px 5px;border:1px solid var(--green);opacity:.8;">▶ ${s.startDate}</span>`;
+    if(diff===0) return `<span style="font-size:10px;color:var(--green-bright);padding:1px 5px;border:1px solid var(--green-bright);">▶ ${cfg.lang==='ru'?'СТАРТ СЕГОДНЯ':'START TODAY'}</span>`;
+    return '';
+  })():'';
+  const todayBadge=s.todayTask?`<span style="font-size:10px;color:var(--gold-bright);background:rgba(196,163,90,.15);padding:1px 5px;border:1px solid var(--gold-dim);">${cfg.lang==='ru'?'📅 СЕГОДНЯ':'📅 TODAY'}</span>`:'';
+
+  return `
+    <div class="step-item${s.done?' step-done':''}${s.priority&&s.priority!=='none'?' sp-'+s.priority:''}"
+      draggable="true"
+      ondragstart="onDragStart(event,${realIdx})"
+      ondragover="onDragOver(event,${realIdx})"
+      ondragleave="onDragLeave()"
+      ondrop="onDrop(event,${realIdx})">
+      <div class="step-header">
+        <span class="drag-handle" title="drag to reorder">⠿</span>
+        <button class="expand-btn" id="exp-btn-${s.id}" onclick="toggleExpand(${s.id})">${isExp?'▼':'▶'}</button>
+        <div class="step-check" onclick="toggleStep(${q.id},${s.id})">${s.done?'✓':''}</div>
+        <div class="step-body">
+          <div class="step-text">${esc(s.text)}</div>
+          ${s.note?`<div class="step-note">${esc(s.note)}</div>`:''}
+          ${s.result?`<div class="step-result">${esc(s.result)}</div>`:''}
+          ${s.reward?`<div class="step-reward-txt">${esc(s.reward)}</div>`:''}
+          <div class="step-meta-row">
+            ${priTagHTML(s.priority||'none')}
+            ${dl}${startBadge}${todayBadge}
+            ${subAll>0?`<span class="step-index">${subDone}/${subAll} sub</span>`:''}
+            ${s.done&&s.doneAt?`<span class="step-done-time">✓ ${s.doneAt}</span>`:''}
+          </div>
+        </div>
+        <div class="step-item-actions">
+          <button class="icon-btn" onclick="openStepEdit(${q.id},${s.id})" title="edit">✎</button>
+          <button class="icon-btn" onclick="copyStep(${q.id},${s.id})" title="copy">⧉</button>
+          <button class="icon-btn del" onclick="deleteStep(${q.id},${s.id})">✕</button>
+        </div>
+      </div>
+      <div class="substeps-wrap${isExp?' open':''}" id="sub-wrap-${s.id}">
+        ${subAll>0?`<div class="substeps-list">${subsHTML}</div>`:''}
+        <div class="add-substep-row">
+          <input class="add-substep-input" id="add-ss-${s.id}"
+            placeholder="${cfg.lang==='ru'?'Подзадача...':'Subtask...'}"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();addSubstep(${s.id})}">
+          <button class="add-substep-btn" onclick="addSubstep(${s.id})">+</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════
+   RENDER — FOOTER
+══════════════════════════════════════════ */
+function updateFooter() {
+  const qt=state.quests.length, qd=state.quests.filter(q=>q.done).length;
+  const qs=state.quests.filter(q=>q.starred).length;
+  let st=0,sd=0,sub=0,subd=0;
+  state.quests.forEach(q=>{ q.steps.forEach(s=>{ st++;if(s.done)sd++;(s.substeps||[]).forEach(ss=>{sub++;if(ss.done)subd++;}); }); });
+  document.getElementById('footerStats').innerHTML=`
+    <span class="footer-stat">${t('quests_lbl')} <span class="footer-stat-val">${qd}/${qt}</span></span>
+    <span class="footer-stat">${cfg.lang==='ru'?'Действия':'Actions'} <span class="footer-stat-val">${sd}/${st}</span></span>
+    <span class="footer-stat">${cfg.lang==='ru'?'Подзадачи':'Subtasks'} <span class="footer-stat-val">${subd}/${sub}</span></span>
+    ${qs>0?`<span class="footer-stat">★ <span class="footer-stat-val">${qs}</span></span>`:''}`;
+}
+
+function render() { renderQuestList(); updateFooter(); }
+
+/* ══════════════════════════════════════════
+   CALENDAR
+══════════════════════════════════════════ */
+function calToday() { calYear=new Date().getFullYear(); calMonth=new Date().getMonth(); renderCalendar(); }
+function calMove(d) { calMonth+=d; if(calMonth>11){calMonth=0;calYear++;} if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+
+function renderCalendar() {
+  const months_ru=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const months_en=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const months=cfg.lang==='ru'?months_ru:months_en;
+  const dows_ru=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  const dows_en=['Mo','Tu','We','Th','Fr','Sa','Su'];
+  const dows=cfg.lang==='ru'?dows_ru:dows_en;
+
+  document.getElementById('calTitle').textContent=`${months[calMonth]} ${calYear}`;
+
+  const today=todayISO();
+  const firstDay=new Date(calYear,calMonth,1);
+  let startDow=firstDay.getDay(); // 0=Sun
+  startDow=(startDow+6)%7; // Mon=0
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const daysInPrev=new Date(calYear,calMonth,0).getDate();
+
+  // collect events
+  const events={}; // date -> [{label,type,qid}]
+  function addEv(dt,label,type,qid) {
+    if(!dt) return;
+    if(!events[dt]) events[dt]=[];
+    events[dt].push({label,type,qid});
+  }
+
+  state.quests.forEach(q=>{
+    if(q.deadline) addEv(q.deadline, q.name, q.deadline<today?'overdue':'quest', q.id);
+    q.steps.forEach(s=>{
+      if(s.deadline) addEv(s.deadline, s.text, s.deadline<today?'overdue':'step', q.id);
+      if(s.todayTask) addEv(today, s.text, 'today', q.id);
+    });
+  });
+
+  let html=dows.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+
+  const totalCells=Math.ceil((startDow+daysInMonth)/7)*7;
+  for(let i=0;i<totalCells;i++){
+    let day,month,year,isOther=false;
+    if(i<startDow){ day=daysInPrev-startDow+i+1; month=calMonth; year=calYear; if(month<0){month=11;year--;} isOther=true; }
+    else if(i-startDow>=daysInMonth){ day=i-startDow-daysInMonth+1; month=calMonth+2; year=calYear; if(month>12){month=1;year++;} isOther=true; }
+    else { day=i-startDow+1; month=calMonth+1; year=calYear; }
+    const iso=`${year}-${pad(month)}-${pad(day)}`;
+    const isToday=iso===today;
+    const dayEvs=events[iso]||[];
+    const hasOverdue=dayEvs.some(e=>e.type==='overdue');
+    const cls=['cal-day',isOther?'other-month':'',isToday?'today':'',hasOverdue?'has-overdue':''].filter(Boolean).join(' ');
+    const evsHTML=dayEvs.slice(0,4).map(e=>`<div class="cal-event ev-${e.type}" onclick="selectQuest(${e.qid});switchView('quests')" title="${esc(e.label)}">${esc(e.label.length>22?e.label.slice(0,22)+'…':e.label)}</div>`).join('');
+    const more=dayEvs.length>4?`<div style="font-size:9px;color:var(--white-dim);opacity:.5;">+${dayEvs.length-4}</div>`:'';
+    html+=`<div class="${cls}"><div class="cal-day-num">${day}</div>${evsHTML}${more}</div>`;
+  }
+
+  document.getElementById('calGrid').innerHTML=html;
+}
+
+/* ══════════════════════════════════════════
+   TODAY VIEW
+══════════════════════════════════════════ */
+/* todayViewDate is declared at top alongside cfg */
+
+function todayNavMove(d) {
+  todayViewDate = isoAddDays(todayViewDate, d);
+  renderToday();
+}
+function todayNavToday() {
+  todayViewDate = todayISO();
+  renderToday();
+}
+function todayNavGoDate(iso) {
+  if (iso) { todayViewDate = iso; renderToday(); }
+}
+
+function renderToday() {
+  const viewDate = todayViewDate || todayISO();
+  const realToday = todayISO();
+  const isToday = viewDate === realToday;
+
+  // sync nav input
+  const navInput = document.getElementById('todayNavDate');
+  if (navInput) navInput.value = viewDate;
+  const todayBtn = document.getElementById('todayNavToday');
+  if (todayBtn) todayBtn.classList.toggle('active', isToday);
+
+  // build display date label
+  const dt = new Date(viewDate + 'T12:00:00');
+  const months_ru = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const months_en = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const months = cfg.lang==='ru' ? months_ru : months_en;
+  const days_ru = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const days_en = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  let prefix = '';
+  if (isToday) prefix = cfg.lang==='ru' ? 'Сегодня · ' : 'Today · ';
+  else if (viewDate === isoAddDays(realToday, -1)) prefix = cfg.lang==='ru' ? 'Вчера · ' : 'Yesterday · ';
+  else if (viewDate === isoAddDays(realToday, 1)) prefix = cfg.lang==='ru' ? 'Завтра · ' : 'Tomorrow · ';
+
+  const dateLabel = cfg.lang==='ru'
+    ? `${prefix}${dt.getDate()} ${months[dt.getMonth()]} ${dt.getFullYear()}`
+    : `${prefix}${months[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`;
+  const dayName = (cfg.lang==='ru' ? days_ru : days_en)[dt.getDay()];
+
+  document.getElementById('todayDateLabel').textContent = dateLabel;
+  document.getElementById('todaySubtitle').textContent = dayName;
+
+  // collect items — scoped to viewDate
+  const sections = {
+    overdue:  { key:'today_section_overdue',  items:[], show: isToday },
+    today:    { key:'today_section_today',     items:[], show: true },
+    starting: { key:'today_section_starting',  items:[], show: true },
+    deadline: { key:'today_section_deadline',  items:[], show: true },
+  };
+
+  state.quests.forEach(q => {
+    q.steps.forEach(s => {
+      const item = { s, q };
+      const dl = s.deadline || '';
+      const sd = s.startDate || '';
+      if (isToday && dl && dl < viewDate && !s.done) sections.overdue.items.push(item);
+      if (s.todayTask && !s.done && isToday)         sections.today.items.push(item);
+      if (sd === viewDate && !s.done)                sections.starting.items.push(item);
+      if (dl === viewDate && !s.done)                sections.deadline.items.push(item);
+    });
+  });
+
+  const totalItems = Object.values(sections).reduce((a,sec)=>a+sec.items.length,0);
+  const doneDay = state.quests.reduce((a,q)=>a+q.steps.filter(s=>{
+    if (!s.doneAt) return false;
+    const d = viewDate; // DD.MM from doneAt
+    const ddmm = d.slice(8,10)+'.'+d.slice(5,7);
+    return s.doneAt.startsWith(ddmm);
+  }).length, 0);
+
+  if (totalItems === 0) {
+    document.getElementById('todayBody').innerHTML = `
+      <div class="today-empty">
+        <div class="today-empty-glyph">⟁</div>
+        <div class="today-empty-label">${t('today_no_tasks')}</div>
+      </div>`;
+    document.getElementById('todayFooter').innerHTML = '';
+    return;
+  }
+
+  let html = '';
+  Object.entries(sections).forEach(([key, sec]) => {
+    if (!sec.items.length) return;
+    html += `<div class="today-section-title">${t(sec.key)} <span style="color:var(--white-dim);opacity:.5;">(${sec.items.length})</span></div>`;
+    sec.items.forEach(({s, q}) => {
+      const cls = ['today-item',
+        s.done?'t-done':'',
+        key==='overdue'?'t-overdue':'',
+        key==='today'?'t-today-task':'',
+        key==='starting'?'t-starting':'',
+      ].filter(Boolean).join(' ');
+      let badge = '';
+      if (key==='overdue')  badge = `<span class="today-item-badge t-badge-overdue">${t('overdue')}</span>`;
+      if (key==='today')    badge = `<span class="today-item-badge t-badge-today">${cfg.lang==='ru'?'📅 СЕГОДНЯ':'📅 TODAY'}</span>`;
+      if (key==='starting') badge = `<span class="today-item-badge t-badge-start">${cfg.lang==='ru'?'▶ СТАРТ':'▶ START'}</span>`;
+      if (key==='deadline') badge = `<span class="today-item-badge t-badge-deadline">${cfg.lang==='ru'?'⏰ ДЕДЛАЙН':'⏰ DEADLINE'}</span>`;
+      const priDot = s.priority&&s.priority!=='none'
+        ? `<span style="width:7px;height:7px;border-radius:50%;background:var(--p-${s.priority});display:inline-block;flex-shrink:0;margin-top:3px;"></span>`:'';
+      html += `
+        <div class="${cls}" onclick="selectQuest(${q.id});switchView('quests')">
+          <div class="today-check" onclick="event.stopPropagation();toggleStep(${q.id},${s.id});renderToday()">${s.done?'✓':''}</div>
+          <div class="today-item-body">
+            <div class="today-item-text">${esc(s.text)}</div>
+            <div class="today-item-meta">
+              ${priDot}
+              <span class="today-item-quest">// ${esc(q.name)}</span>
+              ${badge}
+              ${s.deadline&&key!=='deadline'?`<span class="today-item-badge t-badge-deadline">⏰ ${s.deadline}</span>`:''}
+              ${s.result?`<span style="font-size:10px;color:var(--green-bright);opacity:.7;">→ ${esc(s.result.slice(0,40))}${s.result.length>40?'…':''}</span>`:''}
+            </div>
+          </div>
+          <button class="today-go-btn" onclick="event.stopPropagation();selectQuest(${q.id});switchView('quests')">${t('go_to')}</button>
+        </div>`;
+    });
+  });
+
+  document.getElementById('todayBody').innerHTML = html;
+  document.getElementById('todayFooter').innerHTML =
+    `<span>${cfg.lang==='ru'?'Задач':'Tasks'}: <span style="color:var(--gold)">${totalItems}</span></span>` +
+    (doneDay>0?`<span>${cfg.lang==='ru'?'Выполнено':'Done'}: <span style="color:var(--green-bright)">${doneDay}</span></span>`:'');
+}
+
+/* ══════════════════════════════════════════
+   CALENDAR JUMP
+══════════════════════════════════════════ */
+function calJumpTo(ym) {
+  // ym = "YYYY-MM"
+  if (!ym) return;
+  const [y, m] = ym.split('-').map(Number);
+  calYear = y; calMonth = m - 1;
+  renderCalendar();
+}
+
+// sync calendar month-input after render
+const _origRenderCal = typeof renderCalendar !== 'undefined' ? renderCalendar : null;
+function syncCalInput() {
+  const inp = document.getElementById('calJumpInput');
+  if (inp) inp.value = `${calYear}-${pad(calMonth+1)}`;
+}
+
+/* ══════════════════════════════════════════
+   QUICK ADD
+══════════════════════════════════════════ */
+let qaSubtaskCount = 0;
+
+function openQuickAdd() {
+  qaSubtaskCount = 0;
+  document.getElementById('qaText').value = '';
+  document.getElementById('qaNote').value = '';
+  document.getElementById('qaResult').value = '';
+  document.getElementById('qaStartDate').value = '';
+  document.getElementById('qaDeadline').value = '';
+  document.getElementById('qaTodayTask').checked = false;
+  document.getElementById('qaPriority').value = 'none';
+  document.getElementById('qaSubtasks').innerHTML = '';
+
+  // populate quest select
+  const sel = document.getElementById('qaQuestSel');
+  const activeQuests = state.quests.filter(q => !q.done);
+  sel.innerHTML = activeQuests.length
+    ? activeQuests.map(q => `<option value="${q.id}">${esc(q.name)}</option>`).join('')
+    : `<option value="">${cfg.lang==='ru'?'Нет активных квестов':'No active quests'}</option>`;
+
+  // pre-select current active quest
+  if (state.activeId) {
+    const opt = sel.querySelector(`option[value="${state.activeId}"]`);
+    if (opt) opt.selected = true;
+  }
+
+  document.getElementById('qaOverlay').classList.add('show');
+  setTimeout(() => document.getElementById('qaText').focus(), 80);
+}
+
+function qaAddSubtask() {
+  qaSubtaskCount++;
+  const id = 'qass-' + qaSubtaskCount;
+  const row = document.createElement('div');
+  row.className = 'qa-subtask-row';
+  row.id = 'qassr-' + qaSubtaskCount;
+  row.innerHTML = `
+    <input class="qa-subtask-input" id="${id}" placeholder="${cfg.lang==='ru'?'Подзадача...':'Subtask...'}" maxlength="200"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();qaAddSubtask();}">
+    <button class="qa-subtask-del" onclick="this.parentElement.remove()">✕</button>`;
+  document.getElementById('qaSubtasks').appendChild(row);
+  setTimeout(() => document.getElementById(id)?.focus(), 40);
+}
+
+function confirmQuickAdd() {
+  const text = document.getElementById('qaText').value.trim();
+  if (!text) { document.getElementById('qaText').focus(); return; }
+
+  const qid = parseInt(document.getElementById('qaQuestSel').value);
+  const q = state.quests.find(q => q.id === qid);
+  if (!q) { toast(cfg.lang==='ru'?'Выбери квест':'Select a quest'); return; }
+
+  // collect subtasks
+  const subtasks = [];
+  document.querySelectorAll('#qaSubtasks .qa-subtask-input').forEach(inp => {
+    const v = inp.value.trim();
+    if (v) subtasks.push({ id: nextId++, text: v, done: false });
+  });
+
+  const step = {
+    id: nextId++,
+    text,
+    note: document.getElementById('qaNote').value.trim(),
+    result: document.getElementById('qaResult').value.trim(),
+    reward: '',
+    priority: document.getElementById('qaPriority').value,
+    startDate: document.getElementById('qaStartDate').value,
+    deadline: document.getElementById('qaDeadline').value,
+    todayTask: document.getElementById('qaTodayTask').checked,
+    done: false,
+    substeps: subtasks,
+  };
+
+  q.steps.push(step);
+  state.activeId = qid;
+  maybeSave(); render(); renderDetail();
+  closeOverlay('qaOverlay');
+  toast(`${cfg.lang==='ru'?'Задача добавлена в':'Added to'} «${q.name}»`);
+}
+
+/* ══════════════════════════════════════════
+   SUPABASE CONFIG
+══════════════════════════════════════════ */
+const SUPABASE_URL  = 'https://euegsfpvhyncynsdzfaa.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_5wajxdAbjq51z8hHuoF17w_PYUMxZBj';
+
+let _sb = null;
+function getSB() {
+  if (!_sb && window.supabase) _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  return _sb;
+}
+
+/* ── SYNC STATE ── */
+let currentUser = null;
+let syncTimer = null;
+
+function setSyncStatus(s) {
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  if (!dot || !lbl) return;
+  dot.className = 'sync-dot ' + s;
+  const n = new Date();
+  lbl.textContent = s === 'online'
+    ? `${pad(n.getHours())}:${pad(n.getMinutes())}`
+    : s === 'syncing' ? 'sync...' : 'офлайн';
+}
+
+/* ── CLOUD SAVE ── */
+async function cloudSave() {
+  const sb = getSB(); if (!sb || !currentUser) { localSave(); return; }
+  localSave(); // always save locally first
+  try {
+    setSyncStatus('syncing');
+    const { error } = await sb.from('quest_data').upsert(
+      { user_id: currentUser.id, data: state, next_id: nextId, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+    if (error) throw error;
+    setSyncStatus('online');
+  } catch(e) {
+    console.warn('Sync save failed (data saved locally):', e.message);
+    setSyncStatus('offline');
+    // Queue retry on next online event
+  }
+}
+
+/* ── CLOUD LOAD ── */
+async function cloudLoad() {
+  const sb = getSB();
+  // Snapshot local data BEFORE any cloud operation
+  const localSnapshot = JSON.parse(JSON.stringify(state));
+  const localNextId = nextId;
+  // Always load local first
+  localLoad();
+  if (!sb || !currentUser) return;
+  try {
+    setSyncStatus('syncing');
+    const { data, error } = await sb.from('quest_data')
+      .select('data,next_id').eq('user_id', currentUser.id).single();
+    if (error && error.code !== 'PGRST116') throw error;
+    if (data) {
+      const cloudQuests = data.data?.quests || [];
+      const localQuests = state.quests || [];
+      if (cloudQuests.length >= localQuests.length) {
+        state = data.data || { quests:[], activeId:null };
+        nextId = data.next_id || 1;
+      }
+      state.quests.forEach(q => {
+        if (!q.steps) q.steps = [];
+        if (q.starred === undefined) q.starred = false;
+        if (!q.priority) q.priority = 'none';
+        q.steps.forEach((s,i) => {
+          if (!s.id) s.id = q.id*1000+i;
+          if (!s.substeps) s.substeps = [];
+          if (!s.priority) s.priority = 'none';
+          s.substeps.forEach((ss,j) => { if(!ss.id) ss.id = s.id*100+j; });
+        });
+        bumpAll(q);
+      });
+      localSave();
+      setSyncStatus('online');
+    } else {
+      // New account — no cloud data yet
+      const guestTransferred = localStorage.getItem('rql_guest_transferred');
+      const hasLocalData = localSnapshot.quests?.length > 0;
+      if (hasLocalData && !guestTransferred) {
+        // Ask user what to do
+        _pendingTransferSnapshot = { state: localSnapshot, nextId: localNextId };
+        document.getElementById('transferCount').textContent =
+          localSnapshot.quests.length + ' ' + (localSnapshot.quests.length === 1 ? 'квест' :
+          localSnapshot.quests.length < 5 ? 'квеста' : 'квестов');
+        document.getElementById('transferOverlay').classList.add('show');
+        // cloudSave will be called from confirmTransfer
+        return;
+      } else {
+        state = { quests:[], activeId:null };
+        nextId = 1;
+        setSyncStatus('online');
+        await cloudSave();
+      }
+    }
+  } catch(e) {
+    console.warn('Cloud load failed (kept local data):', e.message);
+    setSyncStatus('offline');
+  }
+}
+
+function bumpAll(q) {
+  bumpId(q.id);
+  q.steps.forEach(s => { bumpId(s.id); (s.substeps||[]).forEach(ss => bumpId(ss.id)); });
+}
+
+/* ── DEBOUNCED SAVE ── */
+function debouncedCloudSave() {
+  localSave();
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(cloudSave, 1500);
+}
+
+// Override maybeSave to use cloud
+const _origMaybeSave = maybeSave;
+function maybeSave() { if (cfg.autosave) debouncedCloudSave(); }
+
+function localSave() {
+  localStorage.setItem(storageKey('state'), JSON.stringify(state));
+  localStorage.setItem(storageKey('nid'), nextId);
+  localStorage.setItem('rql_cfg', JSON.stringify(cfg));
+}
+
+function localLoad() {
+  const uid = currentUser?.id || 'guest';
+  try {
+    const r = localStorage.getItem(`rql_${uid}_state`) || localStorage.getItem('rql_state3');
+    if (r) state = JSON.parse(r);
+  } catch(e){}
+  const nid = localStorage.getItem(`rql_${uid}_nid`) || localStorage.getItem('rql_nid3');
+  if (nid) nextId = parseInt(nid)||1;
+  if (!state.quests) state.quests = [];
+}
+
+/* ── AUTH ── */
+let authMode = 'login';
+let _pendingTransferSnapshot = null;
+
+async function confirmTransfer(doTransfer) {
+  document.getElementById('transferOverlay').classList.remove('show');
+  if (doTransfer && _pendingTransferSnapshot) {
+    state = _pendingTransferSnapshot.state;
+    nextId = _pendingTransferSnapshot.nextId;
+    localStorage.setItem('rql_guest_transferred', currentUser.id);
+    toast('Данные перенесены ✓');
+  } else {
+    state = { quests:[], activeId:null };
+    nextId = 1;
+    toast('Начинаем с чистого листа');
+  }
+  _pendingTransferSnapshot = null;
+  await cloudSave();
+  render(); renderDetail();
+}
+
+function handleAuthBtn() {
+  if (currentUser) {
+    if (confirm(`Выйти из ${currentUser.email}?`)) authSignOut();
+  } else {
+    document.getElementById('authErr').textContent = '';
+    document.getElementById('authEmail').value = '';
+    document.getElementById('authPassword').value = '';
+    document.getElementById('authOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('authEmail').focus(), 80);
+  }
+}
+
+function authToggle() {
+  authMode = authMode === 'login' ? 'register' : 'login';
+  document.getElementById('authTitle').textContent = authMode === 'login' ? '// Войти' : '// Регистрация';
+  document.getElementById('authSubmitBtn').textContent = authMode === 'login' ? 'ВОЙТИ' : 'ЗАРЕГИСТРИРОВАТЬСЯ';
+  document.getElementById('authToggleTxt').textContent = authMode === 'login' ? 'Нет аккаунта → Зарегистрироваться' : 'Есть аккаунт → Войти';
+  document.getElementById('authErr').textContent = '';
+}
+
+async function authSubmit() {
+  const sb = getSB(); if (!sb) { toast('Supabase не настроен'); return; }
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  document.getElementById('authErr').textContent = '';
+  document.getElementById('authSubmitBtn').textContent = '...';
+  try {
+    const result = authMode === 'login'
+      ? await sb.auth.signInWithPassword({ email, password })
+      : await sb.auth.signUp({ email, password, options: { emailRedirectTo: 'https://raujin-questlog.vercel.app' } });
+    if (result.error) throw result.error;
+    closeOverlay('authOverlay');
+    toast(authMode === 'login' ? 'Вход выполнен' : 'Регистрация успешна');
+  } catch(e) {
+    document.getElementById('authErr').textContent = e.message;
+    document.getElementById('authSubmitBtn').textContent = authMode === 'login' ? 'ВОЙТИ' : 'ЗАРЕГИСТРИРОВАТЬСЯ';
+  }
+}
+
+async function authGoogle() {
+  const sb = getSB(); if (!sb) return;
+  await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+}
+
+async function authSignOut() {
+  const sb = getSB(); if (!sb) return;
+  await sb.auth.signOut();
+  currentUser = null; updateAuthUI();
+}
+
+function updateAuthUI() {
+  const btn = document.getElementById('authBtn');
+  const sBtn = document.getElementById('settingsAuthBtn');
+  const sLbl = document.getElementById('settingsAuthLabel');
+  const sSub = document.getElementById('settingsAuthSub');
+  if (currentUser) {
+    if (btn) { btn.textContent = currentUser.email?.split('@')[0]?.slice(0,8).toUpperCase() || 'АККАУНТ'; btn.style.borderColor='var(--gold-dim)'; btn.style.color='var(--gold)'; }
+    if (sBtn) { sBtn.textContent = 'ВЫЙТИ'; sBtn.style.borderColor='var(--border)'; sBtn.style.color='var(--white-dim)'; sBtn.onclick = authSignOut; }
+    if (sLbl) sLbl.textContent = `✓ ${currentUser.email}`;
+    if (sSub) sSub.textContent = 'Данные синхронизируются в облаке';
+  } else {
+    if (btn) { btn.textContent = 'ВОЙТИ'; btn.style.borderColor=''; btn.style.color=''; }
+    if (sBtn) { sBtn.textContent = 'ВОЙТИ'; sBtn.style.borderColor='var(--gold-dim)'; sBtn.style.color='var(--gold)'; sBtn.onclick = handleAuthBtn; }
+    if (sLbl) sLbl.textContent = 'Синхронизация';
+    if (sSub) sSub.textContent = 'Войди чтобы синхронизировать данные';
+  }
+}
+
+/* ── MOBILE NAV ── */
+let mobileView = 'quests';
+
+function mSwitchView(v) {
+  mobileView = v;
+  ['quests','inbox','today','calendar','settings'].forEach(name => {
+    document.getElementById('mTab-'+name)?.classList.toggle('active', name === v);
+  });
+  if (window.innerWidth >= 768) { switchView(v); return; }
+  ['quests','inbox','today','calendar','settings'].forEach(name => {
+    document.getElementById('view-'+name)?.classList.remove('active');
+  });
+  if (v !== 'quests') {
+    document.querySelector('.right-panel')?.classList.remove('mobile-open');
+  }
+  const el = document.getElementById('view-'+v);
+  if (el) el.classList.add('active');
+  if (v === 'calendar') renderCalendar();
+  if (v === 'today')    renderToday();
+  if (v === 'inbox')    renderInbox();
+}
+
+function openDetailMobile(id) {
+  selectQuest(id);
+  if (window.innerWidth < 768) {
+    const rightPanel = document.querySelector('.right-panel');
+    if (rightPanel) rightPanel.classList.add('mobile-open');
+    const backBar = document.getElementById('mobileBackBar');
+    if (backBar) backBar.style.display = 'flex';
+  }
+}
+
+function closeMobileDetail() {
+  const rightPanel = document.querySelector('.right-panel');
+  if (rightPanel) rightPanel.classList.remove('mobile-open');
+  const backBar = document.getElementById('mobileBackBar');
+  if (backBar) backBar.style.display = 'none';
+}
+
+// Mobile-aware selectQuest (replaces base function)
+function selectQuest(id) {
+  state.activeId = id; render(); renderDetail();
+  if (window.innerWidth < 768) {
+    document.querySelector('.right-panel')?.classList.add('mobile-open');
+    const backBar = document.getElementById('mobileBackBar');
+    if (backBar) backBar.style.display = 'flex';
+  }
+}
+
+/* ── OFFLINE/ONLINE ── */
+window.addEventListener('online', () => {
+  document.getElementById('offlineBar').classList.remove('show');
+  cloudSave();
+});
+window.addEventListener('offline', () => {
+  document.getElementById('offlineBar').classList.add('show');
+  setSyncStatus('offline');
+});
+
+/* ── SERVICE WORKER ── */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+/* ══════════════════════════════════════════
+   INBOX
+══════════════════════════════════════════ */
+function addInboxItem() {
+  const inp = document.getElementById('inboxInput');
+  const text = inp?.value.trim(); if (!text) return;
+  if (!state.inbox) state.inbox = [];
+  state.inbox.unshift({ id: nextId++, text, done: false, createdAt: nowStr(), note:'', priority:'none' });
+  inp.value = '';
+  maybeSave(); renderInbox();
+  toast('Записано в Inbox');
+}
+
+function toggleInboxItem(id) {
+  const item = state.inbox?.find(i => i.id === id); if (!item) return;
+  item.done = !item.done; item.doneAt = item.done ? nowStr() : null;
+  maybeSave(); renderInbox();
+}
+
+function deleteInboxItem(id) {
+  state.inbox = state.inbox?.filter(i => i.id !== id) || [];
+  maybeSave(); renderInbox();
+}
+
+function clearInboxDone() {
+  state.inbox = state.inbox?.filter(i => !i.done) || [];
+  maybeSave(); renderInbox();
+}
+
+function assignInboxToQuest(id) {
+  const item = state.inbox?.find(i => i.id === id); if (!item) return;
+  const active = state.quests.filter(q => !q.done);
+  if (!active.length) { toast('Нет активных квестов'); return; }
+  // Build quick select
+  const html = active.map(q => `<option value="${q.id}">${esc(q.name)}</option>`).join('');
+  const sel = document.createElement('select');
+  sel.innerHTML = html;
+  sel.className = 'modal-select';
+  sel.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:9999;width:280px;';
+  document.body.appendChild(sel);
+  sel.focus();
+  sel.onchange = () => {
+    const qid = parseInt(sel.value);
+    const q = state.quests.find(q => q.id === qid); if (!q) return;
+    q.steps.push({
+      id: nextId++, text: item.text, note: item.note||'',
+      result:'', reward:'', priority: item.priority||'none',
+      startDate:'', deadline:'', todayTask:false, done:false, substeps:[]
+    });
+    state.inbox = state.inbox.filter(i => i.id !== id);
+    sel.remove(); maybeSave(); render(); renderInbox();
+    toast(`Перенесено в «${q.name}»`);
+  };
+  sel.onblur = () => setTimeout(() => sel.remove(), 200);
+}
+
+function openAssignAll() {
+  const undone = state.inbox?.filter(i => !i.done) || [];
+  if (!undone.length) { toast('Нет задач для переноса'); return; }
+  const active = state.quests.filter(q => !q.done);
+  if (!active.length) { toast('Нет активных квестов'); return; }
+  const qid = parseInt(prompt(
+    'Перенести все незавершённые задачи Inbox в квест.\n\n' +
+    active.map((q,i) => `${i+1}. ${q.name}`).join('\n') +
+    '\n\nВведи номер квеста:'
+  ));
+  if (!qid || isNaN(qid)) return;
+  const q = active[qid-1]; if (!q) { toast('Неверный номер'); return; }
+  undone.forEach(item => {
+    q.steps.push({
+      id: nextId++, text: item.text, note: item.note||'',
+      result:'', reward:'', priority: item.priority||'none',
+      startDate:'', deadline:'', todayTask:false, done:false, substeps:[]
+    });
+  });
+  state.inbox = state.inbox?.filter(i => i.done) || [];
+  maybeSave(); render(); renderInbox();
+  toast(`${undone.length} задач перенесено в «${q.name}»`);
+}
+
+function renderInbox() {
+  if (!state.inbox) state.inbox = [];
+  const el = document.getElementById('inboxList'); if (!el) return;
+  const total = state.inbox.length;
+  const undone = state.inbox.filter(i => !i.done).length;
+  const countEl = document.getElementById('inboxCount');
+  if (countEl) countEl.textContent = `${undone} незавершённых · ${total} всего`;
+
+  if (!total) {
+    el.innerHTML = `<div class="today-empty" style="padding:40px;">
+      <div class="today-empty-glyph">📥</div>
+      <div class="today-empty-label">Inbox пуст</div>
+      <div style="font-size:12px;margin-top:6px;opacity:.6;">Записывай задачи быстро,<br>распределяй потом</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = state.inbox.map(item => `
+    <div class="inbox-item${item.done?' inbox-done':''}">
+      <div class="inbox-item-check" onclick="toggleInboxItem(${item.id})">${item.done?'✓':''}</div>
+      <div class="inbox-item-body">
+        <div class="inbox-item-text">${esc(item.text)}</div>
+        <div class="inbox-item-meta">
+          <span>${item.createdAt}</span>
+          ${item.note?`<span style="font-style:italic;">${esc(item.note)}</span>`:''}
+          ${!item.done?`<span class="assign-badge" onclick="assignInboxToQuest(${item.id})">→ в квест</span>`:''}
+        </div>
+      </div>
+      <div class="inbox-item-actions">
+        <button class="icon-btn" onclick="editInboxItem(${item.id})" title="Редактировать">✎</button>
+        <button class="icon-btn del" onclick="deleteInboxItem(${item.id})" title="Удалить">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function editInboxItem(id) {
+  const item = state.inbox?.find(i => i.id === id); if (!item) return;
+  const cell = document.querySelector(`.inbox-item .inbox-item-text`);
+  // inline edit via prompt for simplicity
+  const newText = prompt('Редактировать задачу:', item.text);
+  if (newText !== null && newText.trim()) {
+    item.text = newText.trim();
+    maybeSave(); renderInbox();
+  }
+}
+
+/* ══════════════════════════════════════════
+   ROLLOVER — перенос незавершённых на сегодня
+══════════════════════════════════════════ */
+function rolloverUnfinished() {
+  const today = todayISO();
+  let count = 0;
+  state.quests.forEach(q => {
+    q.steps.forEach(s => {
+      if (!s.done && s.todayTask && s.startDate && s.startDate < today) {
+        s.startDate = today;
+        count++;
+      }
+    });
+  });
+  if (count > 0) {
+    maybeSave();
+    toast(`Перенесено на сегодня: ${count} задач`);
+  }
+  return count;
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+(async () => {
+  // 1. Load local data instantly
+  load();
+  if (!state.inbox) state.inbox = [];
+  todayViewDate = todayISO();
+  loadSettings();
+  applyI18n();
+  // Auto-rollover on open if enabled
+  if (cfg.autoRollover) rolloverUnfinished();
+  render();
+  renderDetail();
+  // use mobile switcher on small screens, desktop switcher otherwise
+  if (window.innerWidth < 768) {
+    mSwitchView(cfg.startPage || 'quests');
+  } else {
+    switchView(cfg.startPage || 'quests');
+  }
+  setTimeout(syncCalInput, 100);
+
+  // 2. Try Supabase auth
+  const sb = getSB();
+  if (sb) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
+      currentUser = session.user;
+      updateAuthUI();
+      await cloudLoad();
+      render(); renderDetail();
+    } else {
+      setSyncStatus('offline');
+    }
+
+    sb.auth.onAuthStateChange(async (event, session) => {
+      currentUser = session?.user || null;
+      updateAuthUI();
+      if (event === 'SIGNED_IN') {
+        await cloudLoad(); render(); renderDetail();
+      }
+      if (event === 'SIGNED_OUT') {
+        // Clear local state and UI
+        state = { quests:[], activeId:null };
+        localSave();
+        render(); renderDetail();
+        setSyncStatus('offline');
+        toast('Выход выполнен');
+      }
+    });
+  } else {
+    setSyncStatus('offline');
+  }
+
+  // 3. Auto-sync every 30s
+  setInterval(cloudSave, 30000);
+
+  // 4. Patch renderCalendar to sync month input
+  const _rcOrig = renderCalendar;
+  renderCalendar = function() { _rcOrig(); syncCalInput(); };
+
+  // 5. Hotkeys
+  document.addEventListener('keydown', e => {
+    const tag = document.activeElement?.tagName;
+    const inInput = ['INPUT','TEXTAREA','SELECT'].includes(tag);
+    if (!inInput && (e.key === 'n' || e.key === 'N') && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault(); openQuickAdd();
+    }
+    if (e.key === 'Escape') {
+      ['qaOverlay','questEditOverlay','stepEditOverlay','importOverlay','authOverlay'].forEach(id =>
+        document.getElementById(id)?.classList.remove('show'));
+      closeMobileDetail();
+    }
+  });
+})();
+</script>
+</body>
+</html>
